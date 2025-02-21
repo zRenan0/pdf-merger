@@ -52,18 +52,45 @@ def upload_files():
     return '''
     <!doctype html>
     <html>
-    <body>
-        <h2>Envie seus arquivos PDF e imagens para mesclar</h2>
-        <form method="post" enctype="multipart/form-data">
-            <input type="file" name="files" multiple>
-            <input type="submit" value="Mesclar PDFs e Imagens">
+    <head>
+        <title>Mesclar PDFs e Imagens</title>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+        <script>
+            function previewFiles() {
+                let preview = document.getElementById('preview');
+                preview.innerHTML = "";
+                let files = document.getElementById('fileInput').files;
+                
+                for (let file of files) {
+                    let reader = new FileReader();
+                    reader.onload = function(e) {
+                        let div = document.createElement("div");
+                        div.classList.add("col-md-3", "mb-3");
+                        div.innerHTML = `<img src="${e.target.result}" class="img-thumbnail">`;
+                        preview.appendChild(div);
+                    };
+                    
+                    if (file.type.startsWith("image")) {
+                        reader.readAsDataURL(file);
+                    }
+                }
+            }
+        </script>
+    </head>
+    <body class="container mt-5">
+        <h2 class="text-center">Envie seus arquivos PDF e imagens para mesclar</h2>
+        <form method="post" enctype="multipart/form-data" class="mt-4">
+            <div class="mb-3">
+                <input type="file" id="fileInput" name="files" multiple class="form-control" onchange="previewFiles()">
+            </div>
+            <div id="preview" class="row"></div>
+            <button type="submit" class="btn btn-primary">Mesclar PDFs e Imagens</button>
         </form>
     </body>
     </html>
     '''
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     import os
-    port = int(os.environ.get("PORT", 5000))  # Usa a porta do Render
-    app.run(host="0.0.0.0", port=port, debug=False)  # Desative debug em produção
-
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False)
