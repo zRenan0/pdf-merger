@@ -1,6 +1,22 @@
 body {
     background-image: url('/static/imagens/background.jpg');
-    background-size: cover; /* Ajusta o tamanho para cobrir toda a tela */
-    background-position: center center; /* Centraliza a imagem de fundo */
-    background-attachment: fixed; /* Deixa a imagem fixa quando rolar */
+    background-size: cover;  /* Faz a imagem cobrir toda a tela */
+    background-position: center center;  /* Centraliza a imagem */
+    background-attachment: fixed;  /* A imagem de fundo fica fixa enquanto a página rola */
+    font-family: 'Arial', sans-serif;
+    color: #fff;  /* Texto branco para contrastar com a imagem */
+}
+
+.card {
+    border-radius: 15px;
+    overflow: hidden;
+    background-color: rgba(255, 255, 255, 0.8);  /* Fundo com leve transparência */
+}
+
+.card-header {
+    background-color: #007bff;
+    color: white;
+    text-align: center;
+    padding: 20px 0;
+    font-size: 1.5rem;
 }

@@ -26,19 +26,19 @@ def merge_pdfs_and_images(file_list, output_filename):
     
     for file in file_list:
         if file.lower().endswith(".pdf"):
-            merger.append(file)
+            merger.append(file)  # Adiciona PDFs diretamente
         elif file.lower().endswith((".jpg", ".jpeg", ".png")):
             image = Image.open(file)
             pdf_path = file + ".pdf"
             image.convert("RGB").save(pdf_path)
             image_pdfs.append(pdf_path)
-            merger.append(pdf_path)
-    
+            merger.append(pdf_path)  # Converte imagens em PDFs e adiciona
+            
     merger.write(output_filename)
     merger.close()
     
     for img_pdf in image_pdfs:
-        os.remove(img_pdf)
+        os.remove(img_pdf)  # Remove arquivos temporários dos PDFs das imagens
     
     return output_filename
 
