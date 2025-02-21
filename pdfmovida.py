@@ -1,8 +1,8 @@
 from flask import Flask, render_template, request, send_file
-import PyPDF2
-from PIL import Image
 import os
-import fitz  # PyMuPDF para renderizar miniaturas de PDFs
+from PyPDF2 import PdfMerger
+from PIL import Image
+from reportlab.pdfgen import canvas
 
 app = Flask(__name__)
 UPLOAD_FOLDER = "uploads"
@@ -12,34 +12,34 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
-def generate_pdf_thumbnail(pdf_path, thumbnail_path):
-    doc = fitz.open(pdf_path)
-    page = doc[0]  # Primeira página
-    pix = page.get_pixmap()  # Converte a página para uma imagem
-    img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-    img.thumbnail((100, 150))  # Ajusta o tamanho da miniatura
-    img.save(thumbnail_path)
+def convert_image_to_pdf(image_path, pdf_path):
+    # Converte a imagem para PDF usando o ReportLab
+    image = Image.open(image_path)
+    c = canvas.Canvas(pdf_path)
+    c.drawImage(image_path, 0, 0, width=image.width, height=image.height)  # Ajusta a imagem para o PDF
+    c.showPage()
+    c.save()
 
 def merge_pdfs_and_images(file_list, output_filename):
-    merger = PyPDF2.PdfMerger()
+    merger = PdfMerger()
     image_pdfs = []
-    
+
     for file in file_list:
         if file.lower().endswith(".pdf"):
             merger.append(file)  # Adiciona PDFs diretamente
         elif file.lower().endswith((".jpg", ".jpeg", ".png")):
-            image = Image.open(file)
+            # Converte imagens para PDF antes de adicionar
             pdf_path = file + ".pdf"
-            image.convert("RGB").save(pdf_path)
+            convert_image_to_pdf(file, pdf_path)
             image_pdfs.append(pdf_path)
-            merger.append(pdf_path)  # Converte imagens em PDFs e adiciona
-            
+            merger.append(pdf_path)  # Adiciona a versão PDF da imagem
+
     merger.write(output_filename)
     merger.close()
-    
+
     for img_pdf in image_pdfs:
         os.remove(img_pdf)  # Remove arquivos temporários dos PDFs das imagens
-    
+
     return output_filename
 
 @app.route('/', methods=['GET', 'POST'])
@@ -51,11 +51,6 @@ def upload_files():
         for file in uploaded_files:
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], file)
             file_paths.append(file_path)
-            
-            # Gerar miniatura para PDF, se for o caso
-            if file.lower().endswith(".pdf"):
-                thumbnail_path = file_path + "_thumb.jpg"
-                generate_pdf_thumbnail(file_path, thumbnail_path)
         
         output_pdf = os.path.join(app.config['UPLOAD_FOLDER'], MERGED_FILE)
         merged_file = merge_pdfs_and_images(file_paths, output_pdf)
@@ -71,111 +66,87 @@ def upload_files():
         <title>Mesclar PDFs e Imagens</title>
         <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
         <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
-<script>
-    let draggedElement = null;
+        <script>
+            let draggedElement = null;
 
-    document.addEventListener("dragstart", function(e) {
-        draggedElement = e.target;
-    });
+            document.addEventListener("dragstart", function(e) {
+                draggedElement = e.target;
+            });
 
-    document.addEventListener("dragover", function(e) {
-        e.preventDefault();
-    });
+            document.addEventListener("dragover", function(e) {
+                e.preventDefault();
+            });
 
-    document.addEventListener("drop", function(e) {
-        if (e.target.classList.contains("draggable")) {
-            e.preventDefault();
-            draggedElement.parentNode.removeChild(draggedElement);
-            e.target.parentNode.insertBefore(draggedElement, e.target);
-            updateOrder();
-        }
-    });
+            document.addEventListener("drop", function(e) {
+                if (e.target.classList.contains("draggable")) {
+                    e.preventDefault();
+                    draggedElement.parentNode.removeChild(draggedElement);
+                    e.target.parentNode.insertBefore(draggedElement, e.target);
+                    updateOrder();
+                }
+            });
 
-    function updateOrder() {
-        let filesOrder = [];
-        let previewDivs = document.getElementById('preview').children;
-        
-        for (let div of previewDivs) {
-            filesOrder.push(div.getAttribute('data-filename'));
-        }
+            function updateOrder() {
+                let filesOrder = [];
+                let previewDivs = document.getElementById('preview').children;
+                
+                for (let div of previewDivs) {
+                    filesOrder.push(div.getAttribute('data-filename'));
+                }
 
-        document.getElementById('orderedFiles').value = filesOrder.join(',');
-    }
+                document.getElementById('orderedFiles').value = filesOrder.join(',');
+            }
 
-    function handleFileInput(event) {
-        let files = event.target.files;
-        let preview = document.getElementById("preview");
-        preview.innerHTML = ''; // Limpa a pré-visualização
+            function handleFileInput(event) {
+                let files = event.target.files;
+                let preview = document.getElementById("preview");
+                preview.innerHTML = ''; // Limpa a pré-visualização
 
-        // Cria uma lista de arquivos e ordena por nome
-        let fileArray = Array.from(files);
-        fileArray.sort((a, b) => a.name.localeCompare(b.name));
+                // Cria uma lista de arquivos e ordena por nome
+                let fileArray = Array.from(files);
+                fileArray.sort((a, b) => a.name.localeCompare(b.name));
 
-        // Adiciona o conteúdo do arquivo ao preview
-        fileArray.forEach(file => {
-            let div = document.createElement("div");
-            div.classList.add("col-md-3", "mb-3", "draggable");
-            div.setAttribute("draggable", "true");
-            div.setAttribute("data-filename", file.name);
+                // Adiciona o conteúdo do arquivo ao preview
+                fileArray.forEach(file => {
+                    let div = document.createElement("div");
+                    div.classList.add("col-md-3", "mb-3", "draggable");
+                    div.setAttribute("draggable", "true");
+                    div.setAttribute("data-filename", file.name);
 
-            let reader = new FileReader();
-            reader.onload = function(e) {
-                div.innerHTML = `<img src="${e.target.result}" class="img-thumbnail" style="cursor: pointer;">`;
-                preview.appendChild(div);
-            };
-            reader.readAsDataURL(file);
-        });
-    }
-</script>
+                    let reader = new FileReader();
+                    reader.onload = function(e) {
+                        div.innerHTML = `<img src="${e.target.result}" class="img-thumbnail" style="cursor: pointer;">`;
+                        preview.appendChild(div);
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
+        </script>
 
-<style>
-    body {
-        background-image: url('/static/imagens/background.jpg');
-        background-size: cover;
-        background-position: center center;
-        background-attachment: fixed;
-        font-family: 'Arial', sans-serif;
-    }
-    .card {
-        border-radius: 15px;
-        overflow: hidden;
-    }
-    .card-header {
-        background-color: #007bff;
-        color: white;
-        text-align: center;
-        padding: 20px 0;
-        font-size: 1.5rem;
-    }
-    .preview-container {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 15px;
-        margin-top: 20px;
-    }
-    .preview-container .preview-item {
-        width: 120px;
-        height: 120px;
-        border-radius: 10px;
-        overflow: hidden;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    }
-    .preview-container img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-    .btn-upload {
-        background-color: #28a745;
-        border-color: #28a745;
-    }
-    .btn-upload:hover {
-        background-color: #218838;
-        border-color: #1e7e34;
-    }
-</style>
+        <style>
+            body {
+                background-image: url('/static/imagens/background.jpg');
+                background-size: cover;  /* Faz a imagem cobrir toda a tela */
+                background-position: center center;  /* Centraliza a imagem */
+                background-attachment: fixed;  /* A imagem de fundo fica fixa enquanto a página rola */
+                font-family: 'Arial', sans-serif;
+                color: #fff;  /* Texto branco para contrastar com a imagem */
+            }
 
+            .card {
+                border-radius: 15px;
+                overflow: hidden;
+                background-color: rgba(255, 255, 255, 0.8);  /* Fundo com leve transparência */
+            }
 
+            .card-header {
+                background-color: #007bff;
+                color: white;
+                text-align: center;
+                padding: 20px 0;
+                font-size: 1.5rem;
+            }
+        </style>
     </head>
     <body>
         <div class="container mt-5">
