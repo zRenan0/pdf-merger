@@ -14,10 +14,10 @@ if not os.path.exists(UPLOAD_FOLDER):
 
 def generate_pdf_thumbnail(pdf_path, thumbnail_path):
     doc = fitz.open(pdf_path)
-    page = doc[0]
-    pix = page.get_pixmap()
+    page = doc[0]  # Primeira página
+    pix = page.get_pixmap()  # Converte a página para uma imagem
     img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-    img.thumbnail((100, 150))
+    img.thumbnail((100, 150))  # Ajusta o tamanho da miniatura
     img.save(thumbnail_path)
 
 def merge_pdfs_and_images(file_list, output_filename):
@@ -71,67 +71,66 @@ def upload_files():
         <title>Mesclar PDFs e Imagens</title>
         <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
         <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
-        <script>
-            function handleFileInput(event) {
-                let files = event.target.files;
-                let preview = document.getElementById("preview");
-                preview.innerHTML = ''; // Limpa a pré-visualização
+<script>
+    let draggedElement = null;
 
-                // Cria uma lista de arquivos e ordena por nome
-                let fileArray = Array.from(files);
-                fileArray.sort((a, b) => a.name.localeCompare(b.name));
+    document.addEventListener("dragstart", function(e) {
+        draggedElement = e.target;
+    });
 
-                // Adiciona o conteúdo do arquivo ao preview
-                fileArray.forEach(file => {
-                    let div = document.createElement("div");
-                    div.classList.add("col-md-3", "mb-3", "draggable");
-                    div.setAttribute("draggable", "true");
-                    div.setAttribute("data-filename", file.name);
+    document.addEventListener("dragover", function(e) {
+        e.preventDefault();
+    });
 
-                    let reader = new FileReader();
-                    reader.onload = function(e) {
-                        div.innerHTML = `<img src="${e.target.result}" class="img-thumbnail" style="cursor: pointer;">`;
-                        preview.appendChild(div);
-                    };
-                    reader.readAsDataURL(file);
-                });
-            }
+    document.addEventListener("drop", function(e) {
+        if (e.target.classList.contains("draggable")) {
+            e.preventDefault();
+            draggedElement.parentNode.removeChild(draggedElement);
+            e.target.parentNode.insertBefore(draggedElement, e.target);
+            updateOrder();
+        }
+    });
 
-            function updateOrder() {
-                let filesOrder = [];
-                let previewDivs = document.getElementById('preview').children;
-                
-                for (let div of previewDivs) {
-                    filesOrder.push(div.getAttribute('data-filename'));
-                }
+    function updateOrder() {
+        let filesOrder = [];
+        let previewDivs = document.getElementById('preview').children;
+        
+        for (let div of previewDivs) {
+            filesOrder.push(div.getAttribute('data-filename'));
+        }
 
-                document.getElementById('orderedFiles').value = filesOrder.join(',');
-            }
+        document.getElementById('orderedFiles').value = filesOrder.join(',');
+    }
 
-            // Função de drag and drop
-            let draggedElement = null;
+    function handleFileInput(event) {
+        let files = event.target.files;
+        let preview = document.getElementById("preview");
+        preview.innerHTML = ''; // Limpa a pré-visualização
 
-            document.addEventListener("dragstart", function(e) {
-                draggedElement = e.target;
-            });
+        // Cria uma lista de arquivos e ordena por nome
+        let fileArray = Array.from(files);
+        fileArray.sort((a, b) => a.name.localeCompare(b.name));
 
-            document.addEventListener("dragover", function(e) {
-                e.preventDefault();
-            });
+        // Adiciona o conteúdo do arquivo ao preview
+        fileArray.forEach(file => {
+            let div = document.createElement("div");
+            div.classList.add("col-md-3", "mb-3", "draggable");
+            div.setAttribute("draggable", "true");
+            div.setAttribute("data-filename", file.name);
 
-            document.addEventListener("drop", function(e) {
-                if (e.target.classList.contains("draggable")) {
-                    e.preventDefault();
-                    draggedElement.parentNode.removeChild(draggedElement);
-                    e.target.parentNode.insertBefore(draggedElement, e.target);
-                    updateOrder();
-                }
-            });
+            let reader = new FileReader();
+            reader.onload = function(e) {
+                div.innerHTML = `<img src="${e.target.result}" class="img-thumbnail" style="cursor: pointer;">`;
+                preview.appendChild(div);
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+</script>
 
-        </script>
-     <style>
+<style>
     body {
-        background-image: url('/static/background.jpg');
+        background-image: url('/static/imagens/background.jpg');
         background-size: cover;
         background-position: center center;
         background-attachment: fixed;
@@ -175,6 +174,7 @@ def upload_files():
         border-color: #1e7e34;
     }
 </style>
+
 
     </head>
     <body>
