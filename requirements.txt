@@ -2,3 +2,4 @@ flask
 gunicorn
 pypdf2
 pillow
+PyMuPDF
