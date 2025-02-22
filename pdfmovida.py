@@ -3,6 +3,7 @@ import os
 from PyPDF2 import PdfMerger
 from PIL import Image
 from werkzeug.utils import url_encode
+from urllib.parse import quote
 
 
 app = Flask(__name__)
