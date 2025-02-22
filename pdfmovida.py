@@ -2,7 +2,6 @@ from flask import Flask, render_template, request, send_file
 import os
 from PyPDF2 import PdfMerger
 from PIL import Image
-from reportlab.pdfgen import canvas
 
 app = Flask(__name__)
 UPLOAD_FOLDER = "uploads"
@@ -13,11 +12,9 @@ if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
 def convert_image_to_pdf(image_path, pdf_path):
+    # Usando Pillow para converter a imagem para PDF
     image = Image.open(image_path)
-    c = canvas.Canvas(pdf_path, pagesize=(image.width, image.height))
-    c.drawImage(image_path, 0, 0, width=image.width, height=image.height, preserveAspectRatio=True, anchor='c')
-    c.showPage()
-    c.save()
+    image.save(pdf_path, "PDF", resolution=100.0)
 
 def merge_pdfs_and_images(file_list, output_filename):
     merger = PdfMerger()
