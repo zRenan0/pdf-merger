@@ -13,10 +13,9 @@ if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
 def convert_image_to_pdf(image_path, pdf_path):
-    # Converte a imagem para PDF usando o ReportLab
     image = Image.open(image_path)
-    c = canvas.Canvas(pdf_path)
-    c.drawImage(image_path, 0, 0, width=image.width, height=image.height)  # Ajusta a imagem para o PDF
+    c = canvas.Canvas(pdf_path, pagesize=(image.width, image.height))
+    c.drawImage(image_path, 0, 0, width=image.width, height=image.height, preserveAspectRatio=True, anchor='c')
     c.showPage()
     c.save()
 
@@ -26,34 +25,39 @@ def merge_pdfs_and_images(file_list, output_filename):
 
     for file in file_list:
         if file.lower().endswith(".pdf"):
-            merger.append(file)  # Adiciona PDFs diretamente
+            merger.append(file)
         elif file.lower().endswith((".jpg", ".jpeg", ".png")):
-            # Converte imagens para PDF antes de adicionar
             pdf_path = file + ".pdf"
             convert_image_to_pdf(file, pdf_path)
             image_pdfs.append(pdf_path)
-            merger.append(pdf_path)  # Adiciona a versão PDF da imagem
+            merger.append(pdf_path)
 
     merger.write(output_filename)
     merger.close()
 
     for img_pdf in image_pdfs:
-        os.remove(img_pdf)  # Remove arquivos temporários dos PDFs das imagens
+        os.remove(img_pdf)
 
     return output_filename
 
 @app.route('/', methods=['GET', 'POST'])
 def upload_files():
     if request.method == 'POST':
-        uploaded_files = request.form.getlist('files')  # Arquivos ordenados do formulário
+        uploaded_files = request.files.getlist('files')
+        ordered_filenames = request.form.get('filesOrder', '').split(',')
+
         file_paths = []
         
         for file in uploaded_files:
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], file)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+            file.save(file_path)
             file_paths.append(file_path)
         
+        # Ordenar os arquivos conforme a ordem fornecida pelo frontend
+        ordered_file_paths = [fp for name in ordered_filenames for fp in file_paths if os.path.basename(fp) == name]
+
         output_pdf = os.path.join(app.config['UPLOAD_FOLDER'], MERGED_FILE)
-        merged_file = merge_pdfs_and_images(file_paths, output_pdf)
+        merged_file = merge_pdfs_and_images(ordered_file_paths, output_pdf)
         
         return send_file(merged_file, as_attachment=True)
     
@@ -65,86 +69,39 @@ def upload_files():
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Mesclar PDFs e Imagens</title>
         <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
-        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
         <script>
-            let draggedElement = null;
+            function handleFileInput(event) {
+                let files = Array.from(event.target.files);
+                let preview = document.getElementById("preview");
+                preview.innerHTML = "";
 
-            document.addEventListener("dragstart", function(e) {
-                draggedElement = e.target;
-            });
+                files.forEach(file => {
+                    let div = document.createElement("div");
+                    div.classList.add("file-item", "draggable");
+                    div.setAttribute("draggable", "true");
+                    div.setAttribute("data-filename", file.name);
+                    div.innerText = file.name;
+                    preview.appendChild(div);
+                });
 
-            document.addEventListener("dragover", function(e) {
-                e.preventDefault();
-            });
-
-            document.addEventListener("drop", function(e) {
-                if (e.target.classList.contains("draggable")) {
-                    e.preventDefault();
-                    draggedElement.parentNode.removeChild(draggedElement);
-                    e.target.parentNode.insertBefore(draggedElement, e.target);
-                    updateOrder();
-                }
-            });
+                updateOrder();
+            }
 
             function updateOrder() {
                 let filesOrder = [];
-                let previewDivs = document.getElementById('preview').children;
-                
-                for (let div of previewDivs) {
-                    filesOrder.push(div.getAttribute('data-filename'));
-                }
-
-                document.getElementById('orderedFiles').value = filesOrder.join(',');
-            }
-
-            function handleFileInput(event) {
-                let files = event.target.files;
-                let preview = document.getElementById("preview");
-                preview.innerHTML = ''; // Limpa a pré-visualização
-
-                // Cria uma lista de arquivos e ordena por nome
-                let fileArray = Array.from(files);
-                fileArray.sort((a, b) => a.name.localeCompare(b.name));
-
-                // Adiciona o conteúdo do arquivo ao preview
-                fileArray.forEach(file => {
-                    let div = document.createElement("div");
-                    div.classList.add("col-md-3", "mb-3", "draggable");
-                    div.setAttribute("draggable", "true");
-                    div.setAttribute("data-filename", file.name);
-
-                    let reader = new FileReader();
-                    reader.onload = function(e) {
-                        div.innerHTML = `<img src="${e.target.result}" class="img-thumbnail" style="cursor: pointer;">`;
-                        preview.appendChild(div);
-                    };
-                    reader.readAsDataURL(file);
+                document.querySelectorAll("#preview .file-item").forEach(div => {
+                    filesOrder.push(div.getAttribute("data-filename"));
                 });
+                document.getElementById("orderedFiles").value = filesOrder.join(",");
             }
         </script>
-
         <style>
-            body {
-                background-image: url('/static/imagens/background.jpg');
-                background-size: cover;  /* Faz a imagem cobrir toda a tela */
-                background-position: center center;  /* Centraliza a imagem */
-                background-attachment: fixed;  /* A imagem de fundo fica fixa enquanto a página rola */
-                font-family: 'Arial', sans-serif;
-                color: #fff;  /* Texto branco para contrastar com a imagem */
-            }
-
-            .card {
-                border-radius: 15px;
-                overflow: hidden;
-                background-color: rgba(255, 255, 255, 0.8);  /* Fundo com leve transparência */
-            }
-
-            .card-header {
-                background-color: #007bff;
-                color: white;
-                text-align: center;
-                padding: 20px 0;
-                font-size: 1.5rem;
+            .file-item {
+                padding: 10px;
+                border: 1px solid #ccc;
+                margin: 5px;
+                background-color: #f8f9fa;
+                cursor: move;
             }
         </style>
     </head>
@@ -152,23 +109,21 @@ def upload_files():
         <div class="container mt-5">
             <div class="card">
                 <div class="card-header">
-                    <h2><i class="fas fa-upload"></i> Mesclar PDFs e Imagens</h2>
+                    <h2>Mesclar PDFs e Imagens</h2>
                 </div>
                 <div class="card-body">
                     <form method="post" enctype="multipart/form-data">
                         <div class="mb-3">
-                            <label for="fileInput" class="form-label">Selecione seus arquivos PDF e Imagens</label>
+                            <label for="fileInput" class="form-label">Selecione seus arquivos</label>
                             <input type="file" id="fileInput" name="files" multiple class="form-control" onchange="handleFileInput(event)">
                         </div>
-                        <div id="preview" class="preview-container"></div>
-                        <!-- Lista ordenada dos arquivos -->
+                        <div id="preview"></div>
                         <input type="hidden" id="orderedFiles" name="filesOrder">
-                        <button type="submit" class="btn btn-upload btn-lg w-100 mt-3" onclick="updateOrder()">Mesclar Arquivos</button>
+                        <button type="submit" class="btn btn-primary w-100 mt-3" onclick="updateOrder()">Mesclar Arquivos</button>
                     </form>
                 </div>
             </div>
         </div>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     </body>
     </html>
     '''
@@ -176,4 +131,4 @@ def upload_files():
 if __name__ == '__main__':
     import os
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=port, debug=True)
