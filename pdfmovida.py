@@ -2,8 +2,8 @@ from flask import Flask, render_template, request, send_file
 import os
 from PyPDF2 import PdfMerger
 from PIL import Image
-from werkzeug.utils import url_encode
-from urllib.parse import quote
+from urllib.parse import urlencode
+
 
 
 app = Flask(__name__)
