@@ -2,6 +2,8 @@ from flask import Flask, render_template, request, send_file
 import os
 from PyPDF2 import PdfMerger
 from PIL import Image
+from werkzeug.utils import url_encode
+
 
 app = Flask(__name__)
 UPLOAD_FOLDER = "uploads"
