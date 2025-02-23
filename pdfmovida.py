@@ -37,20 +37,6 @@ def merge_pdfs_and_images(file_list, output_filename):
 
     return output_filename
 
-@app.route('/extract-pages', methods=['POST'])
-def extract_pages():
-    uploaded_file = request.files['file']
-    if uploaded_file and uploaded_file.filename.endswith('.pdf'):
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], uploaded_file.filename)
-        uploaded_file.save(file_path)
-
-        pdf_reader = PdfReader(file_path)
-        pages = len(pdf_reader.pages)
-
-        return jsonify({"pages": pages, "filename": uploaded_file.filename})
-
-    return jsonify({"error": "O arquivo enviado não é um PDF válido!"})
-
 @app.route('/static/imagens/<path:filename>')
 def serve_static(filename):
     return send_from_directory(app.config['STATIC_FOLDER'], filename)
@@ -86,7 +72,6 @@ def upload_files():
                             img.src = URL.createObjectURL(file);
                         } else if (file.name.endsWith(".pdf")) {
                             img.src = "https://cdn-icons-png.flaticon.com/512/337/337946.png"; // Ícone de PDF
-                            extractPdfPages(file);
                         } else {
                             img.src = "https://cdn-icons-png.flaticon.com/512/833/833593.png"; // Ícone genérico
                         }
@@ -102,34 +87,6 @@ def upload_files():
                     updateOrder();
                 }
 
-                function extractPdfPages(file) {
-                    let formData = new FormData();
-                    formData.append("file", file);
-
-                    fetch("/extract-pages", { method: "POST", body: formData })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.pages) {
-                                let preview = document.getElementById("preview");
-                                for (let i = 0; i < data.pages; i++) {
-                                    let pageDiv = document.createElement("div");
-                                    pageDiv.classList.add("file-item");
-
-                                    let img = document.createElement("img");
-                                    img.classList.add("thumbnail");
-                                    img.src = "https://cdn-icons-png.flaticon.com/512/337/337946.png"; // Ícone de página PDF
-
-                                    let text = document.createElement("p");
-                                    text.innerText = `Página ${i + 1} - ${data.filename}`;
-
-                                    pageDiv.appendChild(img);
-                                    pageDiv.appendChild(text);
-                                    preview.appendChild(pageDiv);
-                                }
-                            }
-                        });
-                }
-
                 function updateOrder() {
                     let filesOrder = [];
                     document.querySelectorAll("#preview .file-item").forEach(div => {
@@ -138,7 +95,41 @@ def upload_files():
                     document.getElementById("orderedFiles").value = filesOrder.join(",");
                 }
 
+                function allowDrop(event) {
+                    event.preventDefault();
+                }
+
+                function dragStart(event) {
+                    event.dataTransfer.setData("text", event.target.getAttribute("data-filename"));
+                }
+
+                function drop(event) {
+                    event.preventDefault();
+                    let filename = event.dataTransfer.getData("text");
+                    let draggedElement = document.querySelector(`[data-filename='${filename}']`);
+                    let dropZone = event.target.closest(".file-item");
+
+                    if (dropZone && dropZone !== draggedElement) {
+                        preview.insertBefore(draggedElement, dropZone);
+                    }
+
+                    updateOrder();
+                }
+
                 document.getElementById("fileInput").addEventListener("change", handleFileInput);
+
+                document.addEventListener("dragstart", function(event) {
+                    dragStart(event);
+                });
+
+                document.addEventListener("dragover", function(event) {
+                    allowDrop(event);
+                });
+
+                document.addEventListener("drop", function(event) {
+                    drop(event);
+                });
+
             });
         </script>
         <style>
@@ -162,19 +153,19 @@ def upload_files():
             .file-item {
                 display: flex;
                 align-items: center;
-                padding: 15px;
+                padding: 20px;
                 border: 2px solid #ccc;
                 margin: 5px;
                 background-color: #ffffff;
-                cursor: move;
-                border-radius: 8px;
+                cursor: grab;
+                border-radius: 10px;
                 box-shadow: 3px 3px 6px rgba(0, 0, 0, 0.2);
                 width: 100%;
             }
 
             .file-item img.thumbnail {
-                width: 70px;
-                height: 70px;
+                width: 90px;
+                height: 90px;
                 margin-right: 15px;
                 border-radius: 5px;
             }
@@ -185,7 +176,7 @@ def upload_files():
 
             .card-header {
                 text-align: center;
-                font-size: 22px;
+                font-size: 24px;
                 font-weight: bold;
             }
         </style>
@@ -202,7 +193,7 @@ def upload_files():
                             <label for="fileInput" class="form-label">Selecione seus arquivos</label>
                             <input type="file" id="fileInput" name="files" multiple class="form-control">
                         </div>
-                        <div id="preview" class="d-flex flex-wrap"></div>
+                        <div id="preview" class="d-flex flex-column"></div>
                         <input type="hidden" id="orderedFiles" name="filesOrder">
                         <button type="submit" class="btn btn-primary w-100 mt-3">Mesclar Arquivos</button>
                     </form>
