@@ -254,19 +254,39 @@ def upload_files():
                     div.appendChild(img);
                     div.appendChild(span);
                     preview.appendChild(div);
-                });
 
-                updateOrder();
+                    div.addEventListener("dragstart", dragStart);
+                    div.addEventListener("dragover", dragOver);
+                    div.addEventListener("drop", drop);
+                });
             }
 
-            function updateOrder() {
-                let filesOrder = [];
-                document.querySelectorAll("#preview .file-item").forEach(div => {
-                    filesOrder.push(div.getAttribute("data-filename"));
-                });
-                document.getElementById("orderedFiles").value = filesOrder.join(",");
+            function dragStart(event) {
+                event.dataTransfer.setData("text", event.target.dataset.filename);
             }
+
+            function dragOver(event) {
+                event.preventDefault();
+            }
+
+            function drop(event) {
+                event.preventDefault();
+                let draggedFile = event.dataTransfer.getData("text");
+                let targetFile = event.target.dataset.filename;
+
+                // Reorganize files in array logic here...
+            }
+
+            document.getElementById("uploadForm").addEventListener("submit", function (event) {
+                event.preventDefault();
+                let fileOrder = [];
+                document.querySelectorAll("#preview .file-item").forEach(function (item) {
+                    fileOrder.push(item.dataset.filename);
+                });
+                document.getElementById("orderedFiles").value = fileOrder.join(",");
+                document.getElementById("uploadForm").submit();
+            });
         </script>
     </body>
-</html>
-    '''
+    </html>
+'''
