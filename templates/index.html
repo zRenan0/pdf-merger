@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mesclar PDFs e Imagens</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: url("{{ url_for('static', filename='imagens/fundo.jpg') }}") no-repeat center center fixed;
+            background-size: cover;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 50px;
+        }
+        #preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .file-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100px;
+            height: 120px;
+            padding: 10px;
+            border: 2px solid #ccc;
+            background-color: #f8f9fa;
+            cursor: move;
+            text-align: center;
+            font-size: 12px;
+        }
+        .file-item img {
+            max-width: 80px;
+            max-height: 80px;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 class="text-center">Mesclar PDFs e Imagens</h2>
+        <form id="uploadForm" method="post" enctype="multipart/form-data">
+            <div class="mb-3">
+                <label for="fileInput" class="form-label">Selecione seus arquivos</label>
+                <input type="file" id="fileInput" name="files" multiple class="form-control">
+            </div>
+            <div id="preview"></div>
+            <input type="hidden" id="orderedFiles" name="filesOrder">
+            <button type="submit" class="btn btn-primary w-100 mt-3">Mesclar Arquivos</button>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById("fileInput").addEventListener("change", handleFileInput);
+
+        function handleFileInput(event) {
+            let files = Array.from(event.target.files);
+            let preview = document.getElementById("preview");
+            preview.innerHTML = "";
+
+            files.forEach(file => {
+                let div = document.createElement("div");
+                div.classList.add("file-item");
+                div.setAttribute("data-filename", file.name);
+                div.draggable = true;
+                
+                let img = document.createElement("img");
+                if (file.type.includes("image")) {
+                    img.src = URL.createObjectURL(file);
+                } else {
+                    img.src = "{{ url_for('static', filename='imagens/pdf-icon.png') }}";
+                }
+                
+                let span = document.createElement("span");
+                span.innerText = file.name;
+
+                div.appendChild(img);
+                div.appendChild(span);
+                preview.appendChild(div);
+            });
+
+            updateOrder();
+        }
+
+        function updateOrder() {
+            let filesOrder = [];
+            document.querySelectorAll("#preview .file-item").forEach(div => {
+                filesOrder.push(div.getAttribute("data-filename"));
+            });
+            document.getElementById("orderedFiles").value = filesOrder.join(",");
+        }
+
+        document.getElementById("uploadForm").addEventListener("submit", function (event) {
+            event.preventDefault();
+            let formData = new FormData(this);
+
+            fetch("/", { method: "POST", body: formData })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.download_url) {
+                        window.location.href = data.download_url;
+                    } else {
+                        alert("Erro ao mesclar os arquivos!");
+                    }
+                })
+                .catch(error => console.error("Erro:", error));
+        });
+    </script>
+</body>
+</html>
