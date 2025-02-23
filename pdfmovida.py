@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, send_file
+from flask import Flask, request, send_file, send_from_directory
 import os
 from PyPDF2 import PdfMerger
 from PIL import Image
@@ -7,6 +7,7 @@ app = Flask(__name__)
 UPLOAD_FOLDER = "uploads"
 MERGED_FILE = "merged.pdf"
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['STATIC_FOLDER'] = "static/imagens"
 
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
@@ -35,6 +36,10 @@ def merge_pdfs_and_images(file_list, output_filename):
         os.remove(img_pdf)
 
     return output_filename
+
+@app.route('/static/imagens/<path:filename>')
+def serve_static(filename):
+    return send_from_directory(app.config['STATIC_FOLDER'], filename)
 
 @app.route('/', methods=['GET', 'POST'])
 def upload_files():
@@ -77,7 +82,23 @@ def upload_files():
                         div.classList.add("file-item", "draggable");
                         div.setAttribute("draggable", "true");
                         div.setAttribute("data-filename", file.name);
-                        div.innerText = file.name;
+
+                        let img = document.createElement("img");
+                        img.classList.add("thumbnail");
+
+                        if (file.type.startsWith("image")) {
+                            img.src = URL.createObjectURL(file);
+                        } else if (file.name.endsWith(".pdf")) {
+                            img.src = "https://cdn-icons-png.flaticon.com/512/337/337946.png"; // Ícone de PDF
+                        } else {
+                            img.src = "https://cdn-icons-png.flaticon.com/512/833/833593.png"; // Ícone genérico
+                        }
+
+                        let text = document.createElement("p");
+                        text.innerText = file.name;
+
+                        div.appendChild(img);
+                        div.appendChild(text);
 
                         div.addEventListener("dragstart", dragStart);
                         div.addEventListener("dragover", dragOver);
@@ -137,22 +158,42 @@ def upload_files():
             });
         </script>
         <style>
+            body {
+                background-image: url('/static/imagens/background.jpg');
+                background-size: cover;
+                background-position: center;
+            }
             .file-item {
+                display: flex;
+                align-items: center;
                 padding: 10px;
                 border: 1px solid #ccc;
                 margin: 5px;
-                background-color: #f8f9fa;
+                background-color: #ffffff;
                 cursor: move;
+                border-radius: 5px;
+                box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+            }
+            .file-item img.thumbnail {
+                width: 40px;
+                height: 40px;
+                margin-right: 10px;
             }
             .dragging {
                 opacity: 0.5;
+            }
+            .container {
+                background-color: rgba(255, 255, 255, 0.8);
+                padding: 20px;
+                border-radius: 10px;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
             }
         </style>
     </head>
     <body>
         <div class="container mt-5">
             <div class="card">
-                <div class="card-header">
+                <div class="card-header text-center">
                     <h2>Mesclar PDFs e Imagens</h2>
                 </div>
                 <div class="card-body">
@@ -161,7 +202,7 @@ def upload_files():
                             <label for="fileInput" class="form-label">Selecione seus arquivos</label>
                             <input type="file" id="fileInput" name="files" multiple class="form-control">
                         </div>
-                        <div id="preview"></div>
+                        <div id="preview" class="d-flex flex-wrap"></div>
                         <input type="hidden" id="orderedFiles" name="filesOrder">
                         <button type="submit" class="btn btn-primary w-100 mt-3">Mesclar Arquivos</button>
                     </form>
