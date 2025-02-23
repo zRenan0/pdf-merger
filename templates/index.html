@@ -9,66 +9,28 @@
         body {
             background: url("{{ url_for('static', filename='imagens/background.jpg') }}") no-repeat center center fixed;
             background-size: cover;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
         .container {
-            background: rgba(255, 255, 255, 0.95);
-            padding: 25px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 35px;
             border-radius: 12px;
-            margin-top: 50px;
-            box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.2);
-            max-width: 650px;
+            margin-top: 100px;
+            box-shadow: 0px 15px 30px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
             text-align: center;
         }
 
         h2 {
-            font-weight: bold;
             color: #333;
-            margin-bottom: 20px;
-        }
-
-        #preview {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin-top: 15px;
-            justify-content: center;
-        }
-
-        .file-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            width: 130px;
-            height: 170px;
-            padding: 12px;
-            border: 2px solid #ddd;
-            background-color: rgba(255, 255, 255, 0.9);
-            cursor: move;
-            text-align: center;
-            font-size: 14px;
-            border-radius: 12px;
-            box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.1);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .file-item:hover {
-            transform: scale(1.05);
-            box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.2);
-        }
-
-        .file-item img {
-            width: 100px;
-            height: 100px;
-            object-fit: cover;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            border: 1px solid #ccc;
+            font-weight: 700;
+            margin-bottom: 30px;
+            font-size: 32px;
         }
 
         .btn-submit {
-            background: linear-gradient(to right, #007bff, #0056b3);
+            background: linear-gradient(135deg, #007bff, #0056b3);
             color: white;
             font-weight: bold;
             padding: 12px;
@@ -76,24 +38,95 @@
             transition: 0.3s;
             border: none;
             width: 100%;
+            font-size: 16px;
         }
 
         .btn-submit:hover {
-            background: linear-gradient(to right, #0056b3, #003c80);
+            background: linear-gradient(135deg, #0056b3, #003c80);
+        }
+
+        #fileInput {
+            margin-top: 30px;
+        }
+
+        .file-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 120px;
+            height: 150px;
+            padding: 15px;
+            border: 2px solid #ddd;
+            background-color: rgba(255, 255, 255, 0.8);
+            cursor: move;
+            text-align: center;
+            font-size: 12px;
+            border-radius: 12px;
+            box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin: 10px;
+        }
+
+        .file-item:hover {
+            transform: scale(1.05);
+            box-shadow: 0px 5px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .file-item img {
+            width: 90px;
+            height: 90px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border: 1px solid #ccc;
+        }
+
+        #preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .draggable {
+            cursor: grab;
+        }
+
+        .draggable:active {
+            cursor: grabbing;
+        }
+
+        .file-list {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .file-list .file-item {
+            margin: 15px;
+        }
+
+        .file-item p {
+            margin-top: 5px;
+            font-size: 14px;
+            color: #333;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2 class="text-center">Mesclar PDFs e Imagens</h2>
+        <h2>Mesclar PDFs e Imagens</h2>
+
         <form id="uploadForm" method="post" enctype="multipart/form-data">
             <div class="mb-3">
                 <label for="fileInput" class="form-label">Selecione seus arquivos</label>
-                <input type="file" id="fileInput" name="files" multiple class="form-control">
+                <input type="file" id="fileInput" name="files" multiple class="form-control" onchange="handleFileInput(event)">
             </div>
-            <div id="preview"></div>
+            <div id="preview" class="file-list"></div>
             <input type="hidden" id="orderedFiles" name="filesOrder">
-            <button type="submit" class="btn btn-submit mt-3">Mesclar Arquivos</button>
+            <button type="submit" class="btn-submit mt-3">Mesclar Arquivos</button>
         </form>
     </div>
 
@@ -107,7 +140,7 @@
 
             files.forEach(file => {
                 let div = document.createElement("div");
-                div.classList.add("file-item");
+                div.classList.add("file-item", "draggable");
                 div.setAttribute("data-filename", file.name);
                 div.draggable = true;
 
