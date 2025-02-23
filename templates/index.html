@@ -6,13 +6,11 @@
     <title>Mesclar PDFs e Imagens</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        /* Fundo estilizado */
         body {
             background: url("{{ url_for('static', filename='imagens/background.jpg') }}") no-repeat center center fixed;
             background-size: cover;
         }
 
-        /* Painel principal */
         .container {
             background: rgba(255, 255, 255, 0.95);
             padding: 25px;
@@ -29,7 +27,6 @@
             margin-bottom: 20px;
         }
 
-        /* Área de visualização dos arquivos */
         #preview {
             display: flex;
             flex-wrap: wrap;
@@ -38,7 +35,6 @@
             justify-content: center;
         }
 
-        /* Cartão de cada arquivo */
         .file-item {
             display: flex;
             flex-direction: column;
@@ -62,7 +58,6 @@
             box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.2);
         }
 
-        /* Miniatura das imagens e PDFs */
         .file-item img {
             width: 100px;
             height: 100px;
@@ -72,7 +67,6 @@
             border: 1px solid #ccc;
         }
 
-        /* Botão de envio */
         .btn-submit {
             background: linear-gradient(to right, #007bff, #0056b3);
             color: white;
@@ -87,7 +81,6 @@
         .btn-submit:hover {
             background: linear-gradient(to right, #0056b3, #003c80);
         }
-
     </style>
 </head>
 <body>
