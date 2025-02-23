@@ -2,9 +2,6 @@ from flask import Flask, render_template, request, send_file
 import os
 from PyPDF2 import PdfMerger
 from PIL import Image
-from urllib.parse import urlencode
-
-
 
 app = Flask(__name__)
 UPLOAD_FOLDER = "uploads"
@@ -15,7 +12,6 @@ if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
 def convert_image_to_pdf(image_path, pdf_path):
-    # Usando Pillow para converter a imagem para PDF
     image = Image.open(image_path)
     image.save(pdf_path, "PDF", resolution=100.0)
 
@@ -53,7 +49,6 @@ def upload_files():
             file.save(file_path)
             file_paths.append(file_path)
         
-        # Ordenar os arquivos conforme a ordem fornecida pelo frontend
         ordered_file_paths = [fp for name in ordered_filenames for fp in file_paths if os.path.basename(fp) == name]
 
         output_pdf = os.path.join(app.config['UPLOAD_FOLDER'], MERGED_FILE)
@@ -70,30 +65,76 @@ def upload_files():
         <title>Mesclar PDFs e Imagens</title>
         <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
         <script>
-            function handleFileInput(event) {
-                let files = Array.from(event.target.files);
+            document.addEventListener("DOMContentLoaded", function () {
                 let preview = document.getElementById("preview");
-                preview.innerHTML = "";
 
-                files.forEach(file => {
-                    let div = document.createElement("div");
-                    div.classList.add("file-item", "draggable");
-                    div.setAttribute("draggable", "true");
-                    div.setAttribute("data-filename", file.name);
-                    div.innerText = file.name;
-                    preview.appendChild(div);
-                });
+                function handleFileInput(event) {
+                    let files = Array.from(event.target.files);
+                    preview.innerHTML = "";
 
-                updateOrder();
-            }
+                    files.forEach(file => {
+                        let div = document.createElement("div");
+                        div.classList.add("file-item", "draggable");
+                        div.setAttribute("draggable", "true");
+                        div.setAttribute("data-filename", file.name);
+                        div.innerText = file.name;
 
-            function updateOrder() {
-                let filesOrder = [];
-                document.querySelectorAll("#preview .file-item").forEach(div => {
-                    filesOrder.push(div.getAttribute("data-filename"));
-                });
-                document.getElementById("orderedFiles").value = filesOrder.join(",");
-            }
+                        div.addEventListener("dragstart", dragStart);
+                        div.addEventListener("dragover", dragOver);
+                        div.addEventListener("drop", drop);
+
+                        preview.appendChild(div);
+                    });
+
+                    updateOrder();
+                }
+
+                function dragStart(event) {
+                    event.dataTransfer.setData("text/plain", event.target.dataset.filename);
+                    event.target.classList.add("dragging");
+                }
+
+                function dragOver(event) {
+                    event.preventDefault();
+                    const dragging = document.querySelector(".dragging");
+                    const afterElement = getDragAfterElement(preview, event.clientY);
+                    if (afterElement == null) {
+                        preview.appendChild(dragging);
+                    } else {
+                        preview.insertBefore(dragging, afterElement);
+                    }
+                }
+
+                function drop(event) {
+                    event.preventDefault();
+                    document.querySelector(".dragging").classList.remove("dragging");
+                    updateOrder();
+                }
+
+                function getDragAfterElement(container, y) {
+                    const draggableElements = [...container.querySelectorAll(".draggable:not(.dragging)")];
+
+                    return draggableElements.reduce((closest, child) => {
+                        const box = child.getBoundingClientRect();
+                        const offset = y - box.top - box.height / 2;
+                        if (offset < 0 && offset > closest.offset) {
+                            return { offset: offset, element: child };
+                        } else {
+                            return closest;
+                        }
+                    }, { offset: Number.NEGATIVE_INFINITY }).element;
+                }
+
+                function updateOrder() {
+                    let filesOrder = [];
+                    document.querySelectorAll("#preview .file-item").forEach(div => {
+                        filesOrder.push(div.getAttribute("data-filename"));
+                    });
+                    document.getElementById("orderedFiles").value = filesOrder.join(",");
+                }
+
+                document.getElementById("fileInput").addEventListener("change", handleFileInput);
+            });
         </script>
         <style>
             .file-item {
@@ -102,6 +143,9 @@ def upload_files():
                 margin: 5px;
                 background-color: #f8f9fa;
                 cursor: move;
+            }
+            .dragging {
+                opacity: 0.5;
             }
         </style>
     </head>
@@ -115,11 +159,11 @@ def upload_files():
                     <form method="post" enctype="multipart/form-data">
                         <div class="mb-3">
                             <label for="fileInput" class="form-label">Selecione seus arquivos</label>
-                            <input type="file" id="fileInput" name="files" multiple class="form-control" onchange="handleFileInput(event)">
+                            <input type="file" id="fileInput" name="files" multiple class="form-control">
                         </div>
                         <div id="preview"></div>
                         <input type="hidden" id="orderedFiles" name="filesOrder">
-                        <button type="submit" class="btn btn-primary w-100 mt-3" onclick="updateOrder()">Mesclar Arquivos</button>
+                        <button type="submit" class="btn btn-primary w-100 mt-3">Mesclar Arquivos</button>
                     </form>
                 </div>
             </div>
@@ -129,6 +173,5 @@ def upload_files():
     '''
 
 if __name__ == '__main__':
-    import os
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
