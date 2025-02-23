@@ -266,39 +266,6 @@ def upload_files():
                 });
                 document.getElementById("orderedFiles").value = filesOrder.join(",");
             }
-
-            const preview = document.getElementById('preview');
-            preview.addEventListener('dragstart', (e) => {
-                if (e.target.classList.contains('draggable')) {
-                    e.dataTransfer.setData('text/plain', e.target.getAttribute('data-filename'));
-                }
-            });
-
-            preview.addEventListener('dragover', (e) => {
-                e.preventDefault();
-            });
-
-            preview.addEventListener('drop', (e) => {
-                e.preventDefault();
-                const draggedFileName = e.dataTransfer.getData('text/plain');
-                const targetFileName = e.target.getAttribute('data-filename');
-
-                const draggedElement = document.querySelector(`[data-filename="${draggedFileName}"]`);
-                const targetElement = e.target.closest('.file-item');
-
-                const allItems = [...preview.querySelectorAll('.file-item')];
-
-                const draggedIndex = allItems.indexOf(draggedElement);
-                const targetIndex = allItems.indexOf(targetElement);
-
-                if (draggedIndex < targetIndex) {
-                    preview.insertBefore(draggedElement, targetElement.nextSibling);
-                } else {
-                    preview.insertBefore(draggedElement, targetElement);
-                }
-
-                updateOrder();
-            });
         </script>
     </body>
 </html>
