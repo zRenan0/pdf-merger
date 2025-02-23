@@ -158,35 +158,53 @@ def upload_files():
             });
         </script>
         <style>
+            /* Ajuste da imagem de fundo para cobrir toda a área do mesclador */
             body {
                 background-image: url('/static/imagens/background.jpg');
-                background-size: cover;
+                background-size: contain; /* Mantém a proporção da imagem */
                 background-position: center;
+                background-repeat: no-repeat;
+                background-attachment: fixed; /* Mantém a imagem fixa enquanto rola a página */
             }
+
+            .container {
+                background-color: rgba(255, 255, 255, 0.9); /* Mais opaco para melhor visibilidade */
+                padding: 20px;
+                border-radius: 10px;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+                max-width: 800px;
+                margin: auto;
+            }
+
+            /* Aumentando os ícones dos arquivos */
             .file-item {
                 display: flex;
                 align-items: center;
-                padding: 10px;
-                border: 1px solid #ccc;
+                padding: 15px;
+                border: 2px solid #ccc;
                 margin: 5px;
                 background-color: #ffffff;
                 cursor: move;
-                border-radius: 5px;
-                box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+                border-radius: 8px;
+                box-shadow: 3px 3px 6px rgba(0, 0, 0, 0.2);
+                width: 100%;
             }
+
             .file-item img.thumbnail {
-                width: 40px;
-                height: 40px;
-                margin-right: 10px;
+                width: 70px; /* Ícones maiores */
+                height: 70px;
+                margin-right: 15px;
+                border-radius: 5px;
             }
+
             .dragging {
-                opacity: 0.5;
+                opacity: 0.6;
             }
-            .container {
-                background-color: rgba(255, 255, 255, 0.8);
-                padding: 20px;
-                border-radius: 10px;
-                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+
+            .card-header {
+                text-align: center;
+                font-size: 22px;
+                font-weight: bold;
             }
         </style>
     </head>
