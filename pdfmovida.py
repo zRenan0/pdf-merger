@@ -1,6 +1,6 @@
 from flask import Flask, request, render_template, send_file, jsonify
 import os
-from PyPDF2 import PdfMerger
+from PyPDF2 import PdfMerger, PdfReader, PdfWriter
 from PIL import Image
 import io
 import shutil
@@ -53,9 +53,19 @@ def upload_files():
             try:
                 merged_pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], 'merged_output.pdf')
                 merge_pdfs(file_paths_sorted, merged_pdf_path)
-                return send_file(merged_pdf_path, as_attachment=True)
+                
+                # Desmembrando as páginas mescladas em PDFs individuais
+                split_pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], 'split_pdf')
+                os.makedirs(split_pdf_path, exist_ok=True)
+                split_pdf_files = split_pdf(merged_pdf_path, split_pdf_path)
+                
+                # Retornar PDFs desmembrados para o usuário
+                return jsonify({
+                    'message': 'Mesclagem e desmembramento realizados com sucesso!',
+                    'split_pdfs': [os.path.basename(file) for file in split_pdf_files]
+                })
             except Exception as e:
-                return jsonify({"error": f"Erro ao mesclar arquivos: {str(e)}"}), 500
+                return jsonify({"error": f"Erro ao mesclar ou desmembrar arquivos: {str(e)}"}), 500
             finally:
                 # Limpeza dos arquivos temporários após o processamento
                 clean_up_files(file_paths)
@@ -84,6 +94,24 @@ def merge_pdfs(file_paths, output_path):
     pdf_merger.write(output_path)
     pdf_merger.close()
 
+# Função para desmembrar o PDF mesclado em PDFs individuais
+def split_pdf(input_pdf_path, output_folder):
+    pdf_reader = PdfReader(input_pdf_path)
+    split_files = []
+
+    # Para cada página do PDF, cria um arquivo PDF separado
+    for i, page in enumerate(pdf_reader.pages):
+        pdf_writer = PdfWriter()
+        pdf_writer.add_page(page)
+        
+        output_path = os.path.join(output_folder, f"page_{i + 1}.pdf")
+        with open(output_path, 'wb') as output_pdf:
+            pdf_writer.write(output_pdf)
+        
+        split_files.append(output_path)
+
+    return split_files
+
 # Função para limpar arquivos temporários
 def clean_up_files(file_paths):
     for file in file_paths:
@@ -109,9 +137,6 @@ def page_not_found(error):
 @app.errorhandler(413)
 def request_entity_too_large(error):
     return jsonify({"error": "Arquivo muito grande. O tamanho máximo permitido é 50MB."}), 413
-
-app.config['DEBUG'] = True
-
 
 if __name__ == '__main__':
     app.run(debug=True)
