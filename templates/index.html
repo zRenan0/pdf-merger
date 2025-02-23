@@ -169,6 +169,30 @@
             });
             document.getElementById("orderedFiles").value = filesOrder.join(",");
         }
+
+        // Tornar os arquivos arrastáveis
+        const preview = document.getElementById('preview');
+        preview.addEventListener('dragstart', (e) => {
+            if (e.target.classList.contains('draggable')) {
+                e.dataTransfer.setData('text/plain', e.target.getAttribute('data-filename'));
+            }
+        });
+
+        preview.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+
+        preview.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const draggedFileName = e.dataTransfer.getData('text/plain');
+            const draggedFile = document.querySelector(`.file-item[data-filename="${draggedFileName}"]`);
+            const dropTarget = e.target.closest('.file-item');
+
+            if (draggedFile && dropTarget && draggedFile !== dropTarget) {
+                preview.insertBefore(draggedFile, dropTarget.nextSibling);
+                updateOrder();
+            }
+        });
     </script>
 </body>
 </html>

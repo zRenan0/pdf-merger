@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, send_file
 import os
-from PyPDF2 import PdfMerger, PdfReader, PdfWriter
+from PyPDF2 import PdfMerger
 from PIL import Image
 
 app = Flask(__name__)
