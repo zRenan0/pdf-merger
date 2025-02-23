@@ -1,140 +1,192 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Organizar e Mesclar PDFs</title>
+    <title>Mesclar PDFs e Imagens</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
+            background: url("/static/imagens/background.jpg") no-repeat center center fixed;
+            background-size: cover;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
         .container {
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 600px;
-        }
-
-        h1 {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 35px;
+            border-radius: 12px;
+            margin-top: 100px;
+            box-shadow: 0px 15px 30px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
             text-align: center;
-            font-size: 24px;
+        }
+
+        h2 {
             color: #333;
-            margin-bottom: 20px;
+            font-weight: 700;
+            margin-bottom: 30px;
+            font-size: 32px;
         }
 
-        form {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        input[type="file"] {
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            background-color: #f9f9f9;
-        }
-
-        input[type="text"] {
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            background-color: #f9f9f9;
-        }
-
-        button {
-            padding: 12px;
-            background-color: #4CAF50;
+        .btn-submit {
+            background: linear-gradient(135deg, #007bff, #0056b3);
             color: white;
+            font-weight: bold;
+            padding: 12px;
+            border-radius: 10px;
+            transition: 0.3s;
             border: none;
-            border-radius: 4px;
-            cursor: pointer;
+            width: 100%;
             font-size: 16px;
         }
 
-        button:hover {
-            background-color: #45a049;
+        .btn-submit:hover {
+            background: linear-gradient(135deg, #0056b3, #003c80);
         }
 
-        .result {
+        #fileInput {
+            margin-top: 30px;
+        }
+
+        .file-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 120px;
+            height: 150px;
+            padding: 15px;
+            border: 2px solid #ddd;
+            background-color: rgba(255, 255, 255, 0.8);
+            cursor: move;
+            text-align: center;
+            font-size: 12px;
+            border-radius: 12px;
+            box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin: 10px;
+        }
+
+        .file-item:hover {
+            transform: scale(1.05);
+            box-shadow: 0px 5px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .file-item img {
+            width: 90px;
+            height: 90px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border: 1px solid #ccc;
+        }
+
+        #preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
             margin-top: 20px;
         }
 
-        .result ul {
-            list-style-type: none;
-            padding: 0;
+        .draggable {
+            cursor: grab;
         }
 
-        .result ul li {
-            background-color: #f9f9f9;
-            margin: 5px 0;
-            padding: 8px;
-            border-radius: 4px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-
-        .result a {
-            text-decoration: none;
-            color: #4CAF50;
-        }
-
-        .result a:hover {
-            color: #45a049;
+        .draggable:active {
+            cursor: grabbing;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Organize e Mescle seus Arquivos PDF</h1>
+        <h2>Mesclar PDFs e Imagens</h2>
 
-        <form action="/" method="POST" enctype="multipart/form-data">
-            <label for="files">Selecione seus arquivos:</label>
-            <input type="file" name="files" accept=".pdf, .jpg, .jpeg, .png" multiple required><br>
-
-            <label for="filesOrder">Ordem dos arquivos (exemplo: 0,1,2):</label>
-            <input type="text" name="filesOrder" placeholder="Exemplo: 0,1,2" required><br>
-
-            <button type="submit">Mesclar e Organizar</button>
+        <form id="uploadForm" method="POST" enctype="multipart/form-data" action="/">
+            <div class="mb-3">
+                <label for="fileInput" class="form-label">Selecione seus arquivos</label>
+                <input type="file" id="fileInput" name="files" multiple class="form-control" onchange="handleFileInput(event)">
+            </div>
+            <div id="preview" class="file-list"></div>
+            <input type="hidden" id="orderedFiles" name="filesOrder">
+            <button type="submit" class="btn-submit mt-3">Mesclar Arquivos</button>
         </form>
-
-        <div class="result" id="result"></div>
     </div>
 
     <script>
-        document.querySelector("form").addEventListener("submit", async function(event) {
-            event.preventDefault();
-            const formData = new FormData(this);
-            
-            try {
-                const response = await fetch('/', {
-                    method: 'POST',
-                    body: formData,
-                });
+        let filesArray = [];
 
-                const result = await response.json();
-                if (result.split_pdfs) {
-                    let resultHtml = "<h3>Arquivos Processados:</h3><ul>";
-                    result.split_pdfs.forEach(file => {
-                        resultHtml += `<li><a href="/download/${file}" target="_blank">${file}</a></li>`;
-                    });
-                    resultHtml += "</ul>";
-                    document.getElementById('result').innerHTML = resultHtml;
-                } else {
-                    document.getElementById('result').innerHTML = `<p style="color: red;">Erro: ${result.error || 'Erro desconhecido!'}</p>`;
+        function handleFileInput(event) {
+            let files = Array.from(event.target.files);
+            filesArray = [...filesArray, ...files]; // Adiciona novos arquivos ao array
+
+            let preview = document.getElementById("preview");
+            preview.innerHTML = ""; // Limpa o preview
+
+            // Exibe os arquivos na tela para visualização
+            filesArray.forEach(file => {
+                let div = document.createElement("div");
+                div.classList.add("file-item", "draggable");
+                div.setAttribute("data-filename", file.name);
+                div.draggable = true;
+
+                let img = document.createElement("img");
+                if (file.type.includes("image")) {
+                    img.src = URL.createObjectURL(file);
+                } else if (file.type === "application/pdf") {
+                    img.src = "/static/imagens/pdf-icon.png";
                 }
-            } catch (error) {
-                document.getElementById('result').innerHTML = `<p style="color: red;">Erro ao processar: ${error.message}</p>`;
-            }
+
+                let span = document.createElement("span");
+                span.innerText = file.name;
+
+                div.appendChild(img);
+                div.appendChild(span);
+                preview.appendChild(div);
+
+                div.addEventListener("dragstart", dragStart);
+                div.addEventListener("dragover", dragOver);
+                div.addEventListener("drop", drop);
+            });
+        }
+
+        function dragStart(event) {
+            event.dataTransfer.setData("text", event.target.dataset.filename);
+        }
+
+        function dragOver(event) {
+            event.preventDefault();
+        }
+
+        function drop(event) {
+            event.preventDefault();
+
+            let draggedFile = event.dataTransfer.getData("text");
+            let targetFile = event.target.dataset.filename;
+
+            // Lógica para reorganizar os arquivos no array
+            const draggedFileIndex = filesArray.findIndex(f => f.name === draggedFile);
+            const targetFileIndex = filesArray.findIndex(f => f.name === targetFile);
+
+            // Trocar a posição dos arquivos no array
+            [filesArray[draggedFileIndex], filesArray[targetFileIndex]] = [filesArray[targetFileIndex], filesArray[draggedFileIndex]];
+
+            // Atualizar a ordem no campo oculto
+            updateFileOrder();
+        }
+
+        function updateFileOrder() {
+            let order = filesArray.map(file => file.name);
+            document.getElementById("orderedFiles").value = order.join(",");
+        }
+
+        // Envia o formulário quando o botão for clicado
+        document.getElementById("uploadForm").addEventListener("submit", function (event) {
+            event.preventDefault(); // Previne o envio padrão
+
+            updateFileOrder(); // Atualiza a ordem dos arquivos antes de enviar
+            this.submit(); // Envia o formulário
         });
     </script>
 </body>
