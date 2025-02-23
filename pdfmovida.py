@@ -32,17 +32,6 @@ def split_pdf(pdf_path, output_folder):
         print(f"Erro ao desmembrar o PDF: {e}")
         return []
 
-# Função para converter imagem para PDF
-def convert_image_to_pdf(image_path, pdf_path):
-    """
-    Converte uma imagem para PDF.
-    """
-    try:
-        image = Image.open(image_path)
-        image.save(pdf_path, "PDF", resolution=100.0)
-    except Exception as e:
-        print(f"Erro ao converter imagem para PDF: {e}")
-
 # Função para gerar miniaturas do PDF
 def generate_thumbnail(pdf_file):
     """
@@ -54,14 +43,24 @@ def generate_thumbnail(pdf_file):
         page = reader.pages[0]
 
         # Aqui, você pode usar um método para criar uma miniatura
-        # Exemplo de criação de miniatura
-        thumbnail_path = thumbnail_path.replace(".pdf", ".png")  # Para fins de demonstração
         image = Image.new('RGB', (100, 100), color='blue')  # Apenas um exemplo; substitua com a geração de imagem real.
         image.save(thumbnail_path)
         return thumbnail_path
     except Exception as e:
         print(f"Erro ao gerar miniatura: {e}")
         return ""
+
+# Função para converter uma imagem em PDF
+def convert_image_to_pdf(image_path, pdf_path):
+    """
+    Converte uma imagem em um arquivo PDF.
+    """
+    try:
+        image = Image.open(image_path)
+        image = image.convert('RGB')  # Converte para RGB antes de salvar como PDF
+        image.save(pdf_path, "PDF", resolution=100.0)
+    except Exception as e:
+        print(f"Erro ao converter imagem para PDF: {e}")
 
 # Função para mesclar PDFs e imagens
 def merge_pdfs_and_images(file_list, output_filename):
@@ -86,6 +85,7 @@ def merge_pdfs_and_images(file_list, output_filename):
                     thumbnails.append(generate_thumbnail(pdf))
             elif file.lower().endswith((".jpg", ".jpeg", ".png")):
                 pdf_path = file + ".pdf"
+                # Converter a imagem em PDF
                 convert_image_to_pdf(file, pdf_path)
                 image_pdfs.append(pdf_path)
                 merger.append(pdf_path)
