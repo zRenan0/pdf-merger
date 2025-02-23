@@ -6,7 +6,7 @@
     <title>Mesclar PDFs e Imagens</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        /* CSS atualizado para um design mais clean */
+        /* Estilos semelhantes aos anteriores */
         body {
             background: url("/static/imagens/background.jpg") no-repeat center center fixed;
             background-size: cover;
@@ -104,7 +104,7 @@
     <div class="container">
         <h2>Mesclar PDFs e Imagens</h2>
 
-        <form id="uploadForm" method="post" enctype="multipart/form-data">
+        <form id="uploadForm" method="POST" enctype="multipart/form-data" action="/">
             <div class="mb-3">
                 <label for="fileInput" class="form-label">Selecione seus arquivos</label>
                 <input type="file" id="fileInput" name="files" multiple class="form-control" onchange="handleFileInput(event)">
@@ -123,8 +123,9 @@
             filesArray = [...filesArray, ...files]; // Adiciona novos arquivos ao array
 
             let preview = document.getElementById("preview");
-            preview.innerHTML = "";
+            preview.innerHTML = ""; // Limpa o preview
 
+            // Exibe os arquivos na tela para visualização
             filesArray.forEach(file => {
                 let div = document.createElement("div");
                 div.classList.add("file-item", "draggable");
@@ -181,10 +182,12 @@
             document.getElementById("orderedFiles").value = order.join(",");
         }
 
+        // Envia o formulário quando o botão for clicado
         document.getElementById("uploadForm").addEventListener("submit", function (event) {
-            event.preventDefault();
-            updateFileOrder();
-            document.getElementById("uploadForm").submit(); // Envia o formulário com a ordem dos arquivos
+            event.preventDefault(); // Previne o envio padrão
+
+            updateFileOrder(); // Atualiza a ordem dos arquivos antes de enviar
+            this.submit(); // Envia o formulário
         });
     </script>
 </body>
