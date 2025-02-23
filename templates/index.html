@@ -131,8 +131,7 @@
     </div>
 
     <script>
-        document.getElementById("fileInput").addEventListener("change", handleFileInput);
-
+        // Função que lida com o input de arquivos
         function handleFileInput(event) {
             let files = Array.from(event.target.files);
             let preview = document.getElementById("preview");
@@ -162,6 +161,7 @@
             updateOrder();
         }
 
+        // Função para atualizar a ordem dos arquivos
         function updateOrder() {
             let filesOrder = [];
             document.querySelectorAll("#preview .file-item").forEach(div => {
