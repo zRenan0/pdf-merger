@@ -1,11 +1,8 @@
 body {
-    background-image: url('/static/imagens/background.jpg');
-    background-size: cover;  /* Faz a imagem cobrir toda a tela */
-    background-position: center center;  /* Centraliza a imagem */
-    background-attachment: fixed;  /* A imagem de fundo fica fixa enquanto a página rola */
-    font-family: 'Arial', sans-serif;
-    color: #fff;  /* Texto branco para contrastar com a imagem */
+    background: url("{{ url_for('static', filename='imagens/background.jpg') }}") no-repeat center center fixed;
+    background-size: cover;
 }
+
 
 .card {
     border-radius: 15px;

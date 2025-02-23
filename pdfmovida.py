@@ -7,7 +7,6 @@ app = Flask(__name__)
 UPLOAD_FOLDER = "uploads"
 MERGED_FILE = "merged.pdf"
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['STATIC_FOLDER'] = "static/imagens"
 
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
