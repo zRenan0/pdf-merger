@@ -6,7 +6,6 @@
     <title>Mesclar PDFs e Imagens</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        /* Estilos semelhantes aos anteriores */
         body {
             background: url("/static/imagens/background.jpg") no-repeat center center fixed;
             background-size: cover;
@@ -166,7 +165,7 @@
             let draggedFile = event.dataTransfer.getData("text");
             let targetFile = event.target.dataset.filename;
 
-            // Lógica para reorganizar os arquivos arrastados
+            // Lógica para reorganizar os arquivos no array
             const draggedFileIndex = filesArray.findIndex(f => f.name === draggedFile);
             const targetFileIndex = filesArray.findIndex(f => f.name === targetFile);
 

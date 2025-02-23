@@ -1,75 +1,107 @@
-from flask import Flask, render_template, request, send_from_directory
+from flask import Flask, request, render_template, send_file, jsonify
 import os
-from PyPDF2 import PdfReader, PdfWriter
+from PyPDF2 import PdfMerger
 from PIL import Image
 import io
+import shutil
 
 app = Flask(__name__)
 
-# Caminho para salvar os arquivos temporários
+# Configurações do Upload
 UPLOAD_FOLDER = 'uploads'
-OUTPUT_FOLDER = 'output'
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
-
-# Verifica se a pasta de uploads existe, caso contrário, cria
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # Limite de tamanho de arquivo (50MB)
+app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
-# Função para mesclar PDFs
-def merge_pdfs(pdf_files, output_path):
-    pdf_writer = PdfWriter()
-
-    for pdf in pdf_files:
-        pdf_reader = PdfReader(pdf)
-        for page in range(len(pdf_reader.pages)):
-            pdf_writer.add_page(pdf_reader.pages[page])
-
-    with open(output_path, 'wb') as output_pdf:
-        pdf_writer.write(output_pdf)
-
-# Função para converter imagem em PDF
-def image_to_pdf(image_file, output_pdf):
-    img = Image.open(image_file)
-    pdf_bytes = img.convert('RGB')
-    pdf_bytes.save(output_pdf, "PDF", resolution=100.0)
+# Função para validar se um arquivo é uma imagem ou PDF
+def allowed_file(filename):
+    allowed_extensions = {'pdf', 'jpg', 'jpeg', 'png'}
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
 @app.route('/', methods=['GET', 'POST'])
-def index():
+def upload_files():
     if request.method == 'POST':
+        # Verifica se algum arquivo foi enviado
+        if 'files' not in request.files:
+            return jsonify({"error": "Nenhum arquivo enviado!"}), 400
+        
         files = request.files.getlist('files')
-        ordered_files = request.form.get('filesOrder').split(',')
+        
+        # Verifica se existem arquivos válidos
+        if not files or all(file.filename == '' for file in files):
+            return jsonify({"error": "Nenhum arquivo válido enviado!"}), 400
+        
+        ordered_files = request.form['filesOrder'].split(',')
+        
+        file_paths = []
+        
+        # Salvar os arquivos recebidos
+        for file in files:
+            if file and allowed_file(file.filename):
+                filename = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+                file.save(filename)
+                file_paths.append(filename)
+            else:
+                return jsonify({"error": f"Arquivo inválido: {file.filename}"}), 400
 
-        pdf_files = []
-        image_files = []
+        # Reordenar os arquivos conforme a ordem recebida
+        file_paths_sorted = [file_paths[ordered_files.index(file)] for file in ordered_files]
 
-        # Salva os arquivos temporários
-        for i, file in enumerate(files):
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], f"file_{i}_{file.filename}")
-            file.save(file_path)
-
-            # Classifica os arquivos entre PDFs e imagens
-            if file.filename.lower().endswith('.pdf'):
-                pdf_files.append(file_path)
-            elif file.filename.lower().endswith(('.jpg', '.jpeg', '.png')):
-                image_files.append(file_path)
-
-        # Ordena os arquivos conforme a ordem recebida
-        ordered_files = [os.path.join(app.config['UPLOAD_FOLDER'], f"file_{i}_{ordered_files[i]}") for i in range(len(ordered_files))]
-
-        # Mescla PDFs
-        output_pdf_path = os.path.join(app.config['OUTPUT_FOLDER'], 'merged_output.pdf')
-        merge_pdfs(ordered_files, output_pdf_path)
-
-        # Caso haja imagens, converte para PDF
-        if image_files:
-            for image_file in image_files:
-                image_pdf_path = os.path.join(app.config['OUTPUT_FOLDER'], f'{os.path.basename(image_file)}.pdf')
-                image_to_pdf(image_file, image_pdf_path)
-
-        return send_from_directory(app.config['OUTPUT_FOLDER'], 'merged_output.pdf', as_attachment=True)
+        # Realiza a mesclagem dos PDFs e imagens
+        try:
+            merged_pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], 'merged_output.pdf')
+            merge_pdfs(file_paths_sorted, merged_pdf_path)
+            return send_file(merged_pdf_path, as_attachment=True)
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+        finally:
+            # Limpeza dos arquivos temporários após o processamento
+            clean_up_files(file_paths)
 
     return render_template('index.html')
+
+# Função para mesclar arquivos PDF ou converter imagens para PDF e mesclar
+def merge_pdfs(file_paths, output_path):
+    pdf_merger = PdfMerger()
+
+    for path in file_paths:
+        if path.endswith('.pdf'):
+            pdf_merger.append(path)
+        elif path.lower().endswith(('png', 'jpg', 'jpeg')):
+            img = Image.open(path)
+            img_pdf_path = path.replace(img.format, 'pdf')
+            img.save(img_pdf_path, 'PDF')
+            pdf_merger.append(img_pdf_path)
+
+    pdf_merger.write(output_path)
+    pdf_merger.close()
+
+# Função para limpar arquivos temporários
+def clean_up_files(file_paths):
+    for file in file_paths:
+        try:
+            os.remove(file)
+        except Exception as e:
+            print(f"Erro ao remover arquivo {file}: {str(e)}")
+    
+    # Também limpa arquivos PDF temporários criados durante a conversão de imagens
+    for file in os.listdir(UPLOAD_FOLDER):
+        if file.endswith('.pdf') and file != 'merged_output.pdf':
+            try:
+                os.remove(os.path.join(UPLOAD_FOLDER, file))
+            except Exception as e:
+                print(f"Erro ao remover arquivo {file}: {str(e)}")
+
+# Erro 404 personalizado
+@app.errorhandler(404)
+def page_not_found(error):
+    return jsonify({"error": "Página não encontrada"}), 404
+
+# Erro 413 - Arquivo muito grande
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    return jsonify({"error": "Arquivo muito grande. O tamanho máximo permitido é 50MB."}), 413
 
 if __name__ == '__main__':
     app.run(debug=True)
