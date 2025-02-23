@@ -1,20 +1,18 @@
-from flask import Flask, request, render_template, send_file, jsonify
+from flask import Flask, request, render_template, send_from_directory, jsonify
 import os
 from PyPDF2 import PdfMerger, PdfReader, PdfWriter
 from PIL import Image
-import io
-import shutil
 
 app = Flask(__name__)
 
-# Configurações do Upload
+# Configuração do Upload
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # Limite de tamanho de arquivo (50MB)
+MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # Limite de 50MB
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 
-# Função para validar se um arquivo é uma imagem ou PDF
+# Função para verificar se o arquivo tem a extensão permitida
 def allowed_file(filename):
     allowed_extensions = {'pdf', 'jpg', 'jpeg', 'png'}
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
@@ -23,62 +21,51 @@ def allowed_file(filename):
 def upload_files():
     try:
         if request.method == 'POST':
-            # Verifica se algum arquivo foi enviado
             if 'files' not in request.files:
                 return jsonify({"error": "Nenhum arquivo enviado!"}), 400
-            
+
             files = request.files.getlist('files')
-            
-            # Verifica se existem arquivos válidos
+
             if not files or all(file.filename == '' for file in files):
                 return jsonify({"error": "Nenhum arquivo válido enviado!"}), 400
-            
+
             ordered_files = request.form['filesOrder'].split(',')
             
             file_paths = []
-            
-            # Salvar os arquivos recebidos
             for file in files:
                 if file and allowed_file(file.filename):
                     filename = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
                     file.save(filename)
                     file_paths.append(filename)
-                else:
-                    return jsonify({"error": f"Arquivo inválido: {file.filename}"}), 400
 
-            # Reordenar os arquivos conforme a ordem recebida
+            # Reorganizar os arquivos conforme a ordem recebida
             file_paths_sorted = [file_paths[ordered_files.index(file)] for file in ordered_files]
 
-            # Realiza a mesclagem dos PDFs e imagens
-            try:
-                merged_pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], 'merged_output.pdf')
-                merge_pdfs(file_paths_sorted, merged_pdf_path)
-                
-                # Desmembrando as páginas mescladas em PDFs individuais
-                split_pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], 'split_pdf')
-                os.makedirs(split_pdf_path, exist_ok=True)
-                split_pdf_files = split_pdf(merged_pdf_path, split_pdf_path)
-                
-                # Retornar PDFs desmembrados para o usuário
-                return jsonify({
-                    'message': 'Mesclagem e desmembramento realizados com sucesso!',
-                    'split_pdfs': [os.path.basename(file) for file in split_pdf_files]
-                })
-            except Exception as e:
-                return jsonify({"error": f"Erro ao mesclar ou desmembrar arquivos: {str(e)}"}), 500
-            finally:
-                # Limpeza dos arquivos temporários após o processamento
-                clean_up_files(file_paths)
+            merged_pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], 'merged_output.pdf')
+            split_pdf_folder = os.path.join(app.config['UPLOAD_FOLDER'], 'split_pdfs')
+            os.makedirs(split_pdf_folder, exist_ok=True)
+
+            # Mesclar os PDFs e imagens
+            merge_pdfs(file_paths_sorted, merged_pdf_path)
+
+            # Desmembrar o PDF mesclado
+            split_pdf_files = split_pdf(merged_pdf_path, split_pdf_folder)
+
+            # Retornar os PDFs desmembrados como resposta
+            return jsonify({
+                'message': 'Mesclagem e desmembramento realizados com sucesso!',
+                'split_pdfs': [os.path.basename(file) for file in split_pdf_files]
+            })
 
         return render_template('index.html')
-
+    
     except Exception as e:
         return jsonify({"error": f"Erro interno do servidor: {str(e)}"}), 500
 
-# Função para mesclar arquivos PDF ou converter imagens para PDF e mesclar
+# Função para mesclar os arquivos PDF ou imagens
 def merge_pdfs(file_paths, output_path):
     pdf_merger = PdfMerger()
-
+    
     for path in file_paths:
         try:
             if path.endswith('.pdf'):
@@ -94,41 +81,37 @@ def merge_pdfs(file_paths, output_path):
     pdf_merger.write(output_path)
     pdf_merger.close()
 
-# Função para desmembrar o PDF mesclado em PDFs individuais
+# Função para dividir um PDF em páginas individuais
 def split_pdf(input_pdf_path, output_folder):
     pdf_reader = PdfReader(input_pdf_path)
     split_files = []
 
-    # Para cada página do PDF, cria um arquivo PDF separado
     for i, page in enumerate(pdf_reader.pages):
         pdf_writer = PdfWriter()
         pdf_writer.add_page(page)
-        
+
         output_path = os.path.join(output_folder, f"page_{i + 1}.pdf")
         with open(output_path, 'wb') as output_pdf:
             pdf_writer.write(output_pdf)
-        
+
         split_files.append(output_path)
 
     return split_files
 
-# Função para limpar arquivos temporários
+# Endpoint para o download do PDF
+@app.route('/download/<filename>', methods=['GET'])
+def download_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+# Função para limpar arquivos temporários após o processamento
 def clean_up_files(file_paths):
     for file in file_paths:
         try:
             os.remove(file)
         except Exception as e:
             print(f"Erro ao remover arquivo {file}: {str(e)}")
-    
-    # Também limpa arquivos PDF temporários criados durante a conversão de imagens
-    for file in os.listdir(UPLOAD_FOLDER):
-        if file.endswith('.pdf') and file != 'merged_output.pdf':
-            try:
-                os.remove(os.path.join(UPLOAD_FOLDER, file))
-            except Exception as e:
-                print(f"Erro ao remover arquivo {file}: {str(e)}")
 
-# Erro 404 personalizado
+# Erro 404
 @app.errorhandler(404)
 def page_not_found(error):
     return jsonify({"error": "Página não encontrada"}), 404
