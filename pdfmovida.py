@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, send_file
 import os
-from PyPDF2 import PdfMerger
+from PyPDF2 import PdfMerger, PdfReader
 from PIL import Image
 
 app = Flask(__name__)
@@ -16,13 +16,36 @@ def convert_image_to_pdf(image_path, pdf_path):
     image = Image.open(image_path)
     image.save(pdf_path, "PDF", resolution=100.0)
 
+def split_pdf(input_pdf, output_folder):
+    reader = PdfReader(input_pdf)
+    output_files = []
+
+    for page_num in range(len(reader.pages)):
+        writer = PdfMerger()
+        writer.append(input_pdf, pages=(page_num, page_num + 1))
+        output_filename = os.path.join(output_folder, f"page_{page_num + 1}.pdf")
+        writer.write(output_filename)
+        output_files.append(output_filename)
+
+    return output_files
+
 def merge_pdfs_and_images(file_list, output_filename):
     merger = PdfMerger()
     image_pdfs = []
 
     for file in file_list:
         if file.lower().endswith(".pdf"):
-            merger.append(file)
+            if len(PdfReader(file).pages) > 1:
+                output_folder = os.path.join(UPLOAD_FOLDER, "split")
+                os.makedirs(output_folder, exist_ok=True)
+                split_pdfs = split_pdf(file, output_folder)
+                for split_pdf in split_pdfs:
+                    merger.append(split_pdf)
+                # Remover arquivos de página após mesclagem
+                for split_pdf in split_pdfs:
+                    os.remove(split_pdf)
+            else:
+                merger.append(file)
         elif file.lower().endswith((".jpg", ".jpeg", ".png")):
             pdf_path = file + ".pdf"
             convert_image_to_pdf(file, pdf_path)

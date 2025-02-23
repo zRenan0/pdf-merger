@@ -146,7 +146,7 @@
                 let img = document.createElement("img");
                 if (file.type.includes("image")) {
                     img.src = URL.createObjectURL(file);
-                } else {
+                } else if (file.type === "application/pdf") {
                     img.src = "{{ url_for('static', filename='imagens/pdf-icon.png') }}";
                 }
 
