@@ -6,55 +6,88 @@
     <title>Mesclar PDFs e Imagens</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <style>
+        /* Fundo estilizado */
         body {
             background: url("{{ url_for('static', filename='imagens/background.jpg') }}") no-repeat center center fixed;
             background-size: cover;
         }
 
+        /* Painel principal */
         .container {
-            background: rgba(255, 255, 255, 0.85);
-            padding: 20px;
-            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 25px;
+            border-radius: 12px;
             margin-top: 50px;
-            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
-            max-width: 600px;
+            box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.2);
+            max-width: 650px;
+            text-align: center;
         }
 
         h2 {
-            text-align: center;
+            font-weight: bold;
             color: #333;
+            margin-bottom: 20px;
         }
 
+        /* Área de visualização dos arquivos */
         #preview {
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 10px;
+            gap: 12px;
+            margin-top: 15px;
             justify-content: center;
         }
 
+        /* Cartão de cada arquivo */
         .file-item {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            width: 140px;
-            height: 160px;
-            padding: 10px;
-            border: 2px solid #ccc;
+            width: 130px;
+            height: 170px;
+            padding: 12px;
+            border: 2px solid #ddd;
             background-color: rgba(255, 255, 255, 0.9);
             cursor: move;
             text-align: center;
-            font-size: 12px;
-            border-radius: 10px;
-            box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1);
+            font-size: 14px;
+            border-radius: 12px;
+            box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
         }
 
-        .file-item img {
-            max-width: 100px;
-            max-height: 100px;
-            margin-bottom: 5px;
+        .file-item:hover {
+            transform: scale(1.05);
+            box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.2);
         }
+
+        /* Miniatura das imagens e PDFs */
+        .file-item img {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border: 1px solid #ccc;
+        }
+
+        /* Botão de envio */
+        .btn-submit {
+            background: linear-gradient(to right, #007bff, #0056b3);
+            color: white;
+            font-weight: bold;
+            padding: 12px;
+            border-radius: 10px;
+            transition: 0.3s;
+            border: none;
+            width: 100%;
+        }
+
+        .btn-submit:hover {
+            background: linear-gradient(to right, #0056b3, #003c80);
+        }
+
     </style>
 </head>
 <body>
@@ -67,7 +100,7 @@
             </div>
             <div id="preview"></div>
             <input type="hidden" id="orderedFiles" name="filesOrder">
-            <button type="submit" class="btn btn-primary w-100 mt-3">Mesclar Arquivos</button>
+            <button type="submit" class="btn btn-submit mt-3">Mesclar Arquivos</button>
         </form>
     </div>
 
@@ -84,36 +117,20 @@
                 div.classList.add("file-item");
                 div.setAttribute("data-filename", file.name);
                 div.draggable = true;
-                
+
                 let img = document.createElement("img");
                 if (file.type.includes("image")) {
                     img.src = URL.createObjectURL(file);
                 } else {
                     img.src = "{{ url_for('static', filename='imagens/pdf-icon.png') }}";
                 }
-                
+
                 let span = document.createElement("span");
                 span.innerText = file.name;
 
                 div.appendChild(img);
                 div.appendChild(span);
                 preview.appendChild(div);
-
-                div.addEventListener("dragstart", (e) => {
-                    e.dataTransfer.setData("text/plain", div.getAttribute("data-filename"));
-                });
-
-                div.addEventListener("dragover", (e) => {
-                    e.preventDefault();
-                });
-
-                div.addEventListener("drop", (e) => {
-                    e.preventDefault();
-                    let draggedFilename = e.dataTransfer.getData("text/plain");
-                    let draggedElement = document.querySelector(`[data-filename='${draggedFilename}']`);
-                    preview.insertBefore(draggedElement, div);
-                    updateOrder();
-                });
             });
 
             updateOrder();
@@ -126,22 +143,6 @@
             });
             document.getElementById("orderedFiles").value = filesOrder.join(",");
         }
-
-        document.getElementById("uploadForm").addEventListener("submit", function (event) {
-            event.preventDefault();
-            let formData = new FormData(this);
-
-            fetch("/", { method: "POST", body: formData })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.download_url) {
-                        window.location.href = data.download_url;
-                    } else {
-                        alert("Erro ao mesclar os arquivos!");
-                    }
-                })
-                .catch(error => console.error("Erro:", error));
-        });
     </script>
 </body>
 </html>
