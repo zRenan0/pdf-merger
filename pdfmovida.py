@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, send_file, jsonify
+from flask import Flask, request, render_template, send_file, jsonify, send_from_directory
 import os
 from PyPDF2 import PdfReader, PdfWriter
 from PIL import Image
@@ -62,6 +62,10 @@ def merge_pages():
         return send_file(output_path, as_attachment=True)
     except Exception as e:
         return jsonify({"error": f"Erro ao mesclar páginas: {str(e)}"}), 500
+    
+@app.route('/pdf/<path:filename>')
+def serve_pdf(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 def split_pdfs_and_convert_images(file_paths):
     pages = []
