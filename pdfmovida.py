@@ -1,6 +1,6 @@
 from flask import Flask, request, render_template, send_file, jsonify
 import os
-from PyPDF2 import PdfMerger
+from PyPDF2 import PdfMerger, PdfReader, PdfWriter
 from PIL import Image
 import io
 import shutil
@@ -19,6 +19,57 @@ def allowed_file(filename):
     allowed_extensions = {'pdf', 'jpg', 'jpeg', 'png'}
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
+# Função para desmembrar PDF
+def split_pdf(pdf_path, output_folder):
+    pdf_reader = PdfReader(pdf_path)
+    output_files = []
+
+    for page_num in range(len(pdf_reader.pages)):
+        pdf_writer = PdfWriter()
+        pdf_writer.add_page(pdf_reader.pages[page_num])
+        output_pdf_path = os.path.join(output_folder, f"page_{page_num + 1}.pdf")
+        with open(output_pdf_path, "wb") as output_file:
+            pdf_writer.write(output_file)
+        output_files.append(output_pdf_path)
+
+    return output_files
+
+# Função para mesclar arquivos PDF ou converter imagens para PDF e mesclar
+def merge_pdfs(file_paths, output_path):
+    pdf_merger = PdfMerger()
+
+    for path in file_paths:
+        try:
+            if path.endswith('.pdf'):
+                pdf_merger.append(path)
+            elif path.lower().endswith(('png', 'jpg', 'jpeg')):
+                img = Image.open(path)
+                img_pdf_path = path.replace(img.format, 'pdf')
+                img.save(img_pdf_path, 'PDF')
+                pdf_merger.append(img_pdf_path)
+        except Exception as e:
+            raise Exception(f"Erro ao processar o arquivo {path}: {str(e)}")
+
+    pdf_merger.write(output_path)
+    pdf_merger.close()
+
+# Função para limpar arquivos temporários
+def clean_up_files(file_paths):
+    for file in file_paths:
+        try:
+            os.remove(file)
+        except Exception as e:
+            print(f"Erro ao remover arquivo {file}: {str(e)}")
+    
+    # Também limpa arquivos PDF temporários criados durante a conversão de imagens
+    for file in os.listdir(UPLOAD_FOLDER):
+        if file.endswith('.pdf') and file != 'merged_output.pdf':
+            try:
+                os.remove(os.path.join(UPLOAD_FOLDER, file))
+            except Exception as e:
+                print(f"Erro ao remover arquivo {file}: {str(e)}")
+
+# Rota para enviar os arquivos
 @app.route('/', methods=['GET', 'POST'])
 def upload_files():
     try:
@@ -64,41 +115,6 @@ def upload_files():
 
     except Exception as e:
         return jsonify({"error": f"Erro interno do servidor: {str(e)}"}), 500
-
-# Função para mesclar arquivos PDF ou converter imagens para PDF e mesclar
-def merge_pdfs(file_paths, output_path):
-    pdf_merger = PdfMerger()
-
-    for path in file_paths:
-        try:
-            if path.endswith('.pdf'):
-                pdf_merger.append(path)
-            elif path.lower().endswith(('png', 'jpg', 'jpeg')):
-                img = Image.open(path)
-                img_pdf_path = path.replace(img.format, 'pdf')
-                img.save(img_pdf_path, 'PDF')
-                pdf_merger.append(img_pdf_path)
-        except Exception as e:
-            raise Exception(f"Erro ao processar o arquivo {path}: {str(e)}")
-
-    pdf_merger.write(output_path)
-    pdf_merger.close()
-
-# Função para limpar arquivos temporários
-def clean_up_files(file_paths):
-    for file in file_paths:
-        try:
-            os.remove(file)
-        except Exception as e:
-            print(f"Erro ao remover arquivo {file}: {str(e)}")
-    
-    # Também limpa arquivos PDF temporários criados durante a conversão de imagens
-    for file in os.listdir(UPLOAD_FOLDER):
-        if file.endswith('.pdf') and file != 'merged_output.pdf':
-            try:
-                os.remove(os.path.join(UPLOAD_FOLDER, file))
-            except Exception as e:
-                print(f"Erro ao remover arquivo {file}: {str(e)}")
 
 # Erro 404 personalizado
 @app.errorhandler(404)

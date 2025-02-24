@@ -180,14 +180,6 @@
             let order = filesArray.map(file => file.name);
             document.getElementById("orderedFiles").value = order.join(",");
         }
-
-        // Envia o formulário quando o botão for clicado
-        document.getElementById("uploadForm").addEventListener("submit", function (event) {
-            event.preventDefault(); // Previne o envio padrão
-
-            updateFileOrder(); // Atualiza a ordem dos arquivos antes de enviar
-            this.submit(); // Envia o formulário
-        });
     </script>
 </body>
 </html>
