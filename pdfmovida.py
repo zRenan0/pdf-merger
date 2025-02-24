@@ -104,5 +104,9 @@ def page_not_found(error):
 def request_entity_too_large(error):
     return jsonify({"error": "Arquivo muito grande. O tamanho máximo permitido é 50MB."}), 413
 
+port = int(os.environ.get('PORT', 5000))
+app.run(host='0.0.0.0', port=port)
+
+
 if __name__ == '__main__':
     app.run(debug=True)
