@@ -2,6 +2,8 @@ from flask import Flask, request, render_template, send_file, jsonify, send_from
 import os
 from PyPDF2 import PdfReader, PdfWriter
 from PIL import Image
+import io
+import shutil
 
 app = Flask(__name__)
 
@@ -40,9 +42,9 @@ def upload_files():
                     return jsonify({"error": f"Arquivo inválido: {file.filename}"}), 400
 
             # Desmembrar PDFs e converter imagens
-            pages, image_paths = split_pdfs_and_convert_images(file_paths)
+            pages = split_pdfs_and_convert_images(file_paths)
             
-            return jsonify({"pages": pages, "images": image_paths})
+            return jsonify({"pages": pages})
 
         return render_template('index.html')
 
@@ -61,14 +63,12 @@ def merge_pages():
     except Exception as e:
         return jsonify({"error": f"Erro ao mesclar páginas: {str(e)}"}), 500
     
-@app.route('/uploads/<filename>')
-def serve_file(filename):
+@app.route('/pdf/<path:filename>')
+def serve_pdf(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 def split_pdfs_and_convert_images(file_paths):
     pages = []
-    image_paths = []  # Lista para armazenar as imagens geradas
-    
     for path in file_paths:
         if path.endswith('.pdf'):
             pdf = PdfReader(path)
@@ -81,13 +81,10 @@ def split_pdfs_and_convert_images(file_paths):
                 pages.append({"path": page_path, "name": f"{os.path.basename(path)} - Página {i+1}"})
         elif path.lower().endswith(('png', 'jpg', 'jpeg')):
             img = Image.open(path)
-            image_filename = f"{os.path.basename(path)}_converted.jpg"  # Definindo um nome para a imagem convertida
-            image_path = os.path.join(app.config['UPLOAD_FOLDER'], image_filename)
-            img.save(image_path, 'JPEG')
-            image_paths.append(image_path)  # Adiciona o caminho da imagem à lista
-            pages.append({"path": image_path, "name": os.path.basename(path)})
-
-    return pages, image_paths  # Retorna também os caminhos das imagens
+            pdf_path = f"{path}.pdf"
+            img.save(pdf_path, 'PDF')
+            pages.append({"path": pdf_path, "name": os.path.basename(path)})
+    return pages
 
 def merge_pdf_pages(page_order, output_path):
     merger = PdfWriter()
@@ -109,6 +106,8 @@ def request_entity_too_large(error):
 
 port = int(os.environ.get('PORT', 5000))  # Se a variável de ambiente não for definida, usa 5000
 app.run(host='0.0.0.0', port=port, debug=True)
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)
