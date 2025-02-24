@@ -1,217 +1,243 @@
-</csartifact><csartifact identifier="pdf-merger-splitter-html" type="text/html" title="PDF Merger and Splitter HTML Interface">
-    <!doctype html>
-    <html lang="pt-br">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Mesclar e Desmembrar PDFs e Imagens</title>
-        <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
-        <style>
-            body {
-                background: url("/static/imagens/background.jpg") no-repeat center center fixed;
-                background-size: cover;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+<!doctype html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mesclar e Desmembrar PDFs e Imagens</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.9.359/pdf.min.js"></script>
+    <style>
+        body {
+            background: url("/static/imagens/background.jpg") no-repeat center center fixed;
+            background-size: cover;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 35px;
+            border-radius: 12px;
+            margin-top: 50px;
+            box-shadow: 0px 15px 30px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            text-align: center;
+        }
+
+        h2 {
+            color: #333;
+            font-weight: 700;
+            margin-bottom: 30px;
+            font-size: 32px;
+        }
+
+        .btn-submit {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            font-weight: bold;
+            padding: 12px;
+            border-radius: 10px;
+            transition: 0.3s;
+            border: none;
+            width: 100%;
+            font-size: 16px;
+        }
+
+        .btn-submit:hover {
+            background: linear-gradient(135deg, #0056b3, #003c80);
+        }
+
+        #fileInput {
+            margin-top: 30px;
+        }
+
+        .page-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 120px;
+            height: 180px;
+            padding: 10px;
+            border: 2px solid #ddd;
+            background-color: rgba(255, 255, 255, 0.8);
+            cursor: move;
+            text-align: center;
+            font-size: 12px;
+            border-radius: 12px;
+            box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin: 10px;
+        }
+
+        .page-item:hover {
+            transform: scale(1.05);
+            box-shadow: 0px 5px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .page-item canvas {
+            width: 100px;
+            height: 120px;
+            object-fit: contain;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border: 1px solid #ccc;
+        }
+
+        #pagePreview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .draggable {
+            cursor: grab;
+        }
+
+        .draggable:active {
+            cursor: grabbing;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Mesclar e Desmembrar PDFs e Imagens</h2>
+
+        <form id="uploadForm" method="POST" enctype="multipart/form-data">
+            <div class="mb-3">
+                <label for="fileInput" class="form-label">Selecione seus arquivos</label>
+                <input type="file" id="fileInput" name="files" multiple class="form-control">
+            </div>
+            <button type="submit" class="btn-submit mt-3">Processar Arquivos</button>
+        </form>
+
+        <div id="pagePreview" class="mt-4"></div>
+        <button id="mergeButton" class="btn-submit mt-3" style="display: none;">Mesclar Páginas</button>
+    </div>
+
+    <script>
+        let pages = [];
+
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.9.359/pdf.worker.min.js';
+
+        document.getElementById('uploadForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            let formData = new FormData(this);
+
+            fetch('/', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    pages = data.pages;
+                    displayPages();
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+
+        async function displayPages() {
+            let preview = document.getElementById("pagePreview");
+            preview.innerHTML = "";
+
+            for (let page of pages) {
+                let div = document.createElement("div");
+                div.classList.add("page-item", "draggable");
+                div.setAttribute("data-path", page.path);
+                div.draggable = true;
+
+                let canvas = document.createElement("canvas");
+                div.appendChild(canvas);
+
+                let span = document.createElement("span");
+                span.innerText = page.name;
+                div.appendChild(span);
+
+                preview.appendChild(div);
+
+                div.addEventListener("dragstart", dragStart);
+                div.addEventListener("dragover", dragOver);
+                div.addEventListener("drop", drop);
+
+                // Generate thumbnail
+                await generateThumbnail(page.path, canvas);
             }
-    
-            .container {
-                background: rgba(255, 255, 255, 0.9);
-                padding: 35px;
-                border-radius: 12px;
-                margin-top: 50px;
-                box-shadow: 0px 15px 30px rgba(0, 0, 0, 0.1);
-                max-width: 800px;
-                text-align: center;
+
+            document.getElementById("mergeButton").style.display = "block";
+        }
+
+        async function generateThumbnail(pdfPath, canvas) {
+            try {
+                const loadingTask = pdfjsLib.getDocument(pdfPath);
+                const pdf = await loadingTask.promise;
+                const page = await pdf.getPage(1);
+
+                const scale = 1.5;
+                const viewport = page.getViewport({ scale });
+
+                const context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                const renderContext = {
+                    canvasContext: context,
+                    viewport: viewport
+                };
+                await page.render(renderContext);
+            } catch (error) {
+                console.error('Error generating thumbnail:', error);
             }
-    
-            h2 {
-                color: #333;
-                font-weight: 700;
-                margin-bottom: 30px;
-                font-size: 32px;
-            }
-    
-            .btn-submit {
-                background: linear-gradient(135deg, #007bff, #0056b3);
-                color: white;
-                font-weight: bold;
-                padding: 12px;
-                border-radius: 10px;
-                transition: 0.3s;
-                border: none;
-                width: 100%;
-                font-size: 16px;
-            }
-    
-            .btn-submit:hover {
-                background: linear-gradient(135deg, #0056b3, #003c80);
-            }
-    
-            #fileInput {
-                margin-top: 30px;
-            }
-    
-            .page-item {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                width: 120px;
-                height: 150px;
-                padding: 15px;
-                border: 2px solid #ddd;
-                background-color: rgba(255, 255, 255, 0.8);
-                cursor: move;
-                text-align: center;
-                font-size: 12px;
-                border-radius: 12px;
-                box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.1);
-                transition: transform 0.2s, box-shadow 0.2s;
-                margin: 10px;
-            }
-    
-            .page-item:hover {
-                transform: scale(1.05);
-                box-shadow: 0px 5px 20px rgba(0, 0, 0, 0.2);
-            }
-    
-            .page-item img {
-                width: 90px;
-                height: 90px;
-                object-fit: cover;
-                border-radius: 8px;
-                margin-bottom: 8px;
-                border: 1px solid #ccc;
-            }
-    
-            #pagePreview {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 20px;
-                justify-content: center;
-                margin-top: 20px;
-            }
-    
-            .draggable {
-                cursor: grab;
-            }
-    
-            .draggable:active {
-                cursor: grabbing;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h2>Mesclar e Desmembrar PDFs e Imagens</h2>
-    
-            <form id="uploadForm" method="POST" enctype="multipart/form-data">
-                <div class="mb-3">
-                    <label for="fileInput" class="form-label">Selecione seus arquivos</label>
-                    <input type="file" id="fileInput" name="files" multiple class="form-control">
-                </div>
-                <button type="submit" class="btn-submit mt-3">Processar Arquivos</button>
-            </form>
-    
-            <div id="pagePreview" class="mt-4"></div>
-            <button id="mergeButton" class="btn-submit mt-3" style="display: none;">Mesclar Páginas</button>
-        </div>
-    
-        <script>
-            let pages = [];
-    
-            document.getElementById('uploadForm').addEventListener('submit', function(e) {
-                e.preventDefault();
-                let formData = new FormData(this);
-    
-                fetch('/', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        alert(data.error);
-                    } else {
-                        pages = data.pages;
-                        displayPages();
-                    }
-                })
-                .catch(error => console.error('Error:', error));
-            });
-    
-            function displayPages() {
-                let preview = document.getElementById("pagePreview");
-                preview.innerHTML = "";
-    
-                pages.forEach((page, index) => {
-                    let div = document.createElement("div");
-                    div.classList.add("page-item", "draggable");
-                    div.setAttribute("data-path", page.path);
-                    div.draggable = true;
-    
-                    let img = document.createElement("img");
-                    img.src = "/static/imagens/pdf-icon.png";
-    
-                    let span = document.createElement("span");
-                    span.innerText = page.name;
-    
-                    div.appendChild(img);
-                    div.appendChild(span);
-                    preview.appendChild(div);
-    
-                    div.addEventListener("dragstart", dragStart);
-                    div.addEventListener("dragover", dragOver);
-                    div.addEventListener("drop", drop);
-                });
-    
-                document.getElementById("mergeButton").style.display = "block";
-            }
-    
-            function dragStart(event) {
-                event.dataTransfer.setData("text/plain", event.target.dataset.path);
-            }
-    
-            function dragOver(event) {
-                event.preventDefault();
-            }
-    
-            function drop(event) {
-                event.preventDefault();
-                let draggedPath = event.dataTransfer.getData("text");
-                let targetPath = event.target.closest('.page-item').dataset.path;
-    
-                let draggedIndex = pages.findIndex(p => p.path === draggedPath);
-                let targetIndex = pages.findIndex(p => p.path === targetPath);
-    
-                let [removed] = pages.splice(draggedIndex, 1);
-                pages.splice(targetIndex, 0, removed);
-    
-                displayPages();
-            }
-    
-            document.getElementById('mergeButton').addEventListener('click', function() {
-                let pageOrder = pages.map(p => p.path);
-    
-                fetch('/merge', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({pageOrder: pageOrder})
-                })
-                .then(response => response.blob())
-                .then(blob => {
-                    let url = window.URL.createObjectURL(blob);
-                    let a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'merged_document.pdf';
-                    document.body.appendChild(a);
-                    a.click();
-                    a.remove();
-                })
-                .catch(error => console.error('Error:', error));
-            });
-        </script>
-    </body>
-    </html>
-    
+        }
+
+        function dragStart(event) {
+            event.dataTransfer.setData("text/plain", event.target.dataset.path);
+        }
+
+        function dragOver(event) {
+            event.preventDefault();
+        }
+
+        function drop(event) {
+            event.preventDefault();
+            let draggedPath = event.dataTransfer.getData("text");
+            let targetPath = event.target.closest('.page-item').dataset.path;
+
+            let draggedIndex = pages.findIndex(p => p.path === draggedPath);
+            let targetIndex = pages.findIndex(p => p.path === targetPath);
+
+            let [removed] = pages.splice(draggedIndex, 1);
+            pages.splice(targetIndex, 0, removed);
+
+            displayPages();
+        }
+
+        document.getElementById('mergeButton').addEventListener('click', function() {
+            let pageOrder = pages.map(p => p.path);
+
+            fetch('/merge', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({pageOrder: pageOrder})
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                let url = window.URL.createObjectURL(blob);
+                let a = document.createElement('a');
+                a.href = url;
+                a.download = 'merged_document.pdf';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            })
+            .catch(error => console.error('Error:', error));
+        });
+    </script>
+</body>
+</html>
