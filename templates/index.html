@@ -91,22 +91,6 @@
             margin-top: 20px;
         }
 
-        #image-gallery {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            justify-content: center;
-            margin-top: 20px;
-        }
-
-        .image-item {
-            width: 120px;
-            height: 120px;
-            object-fit: cover;
-            border-radius: 8px;
-            border: 1px solid #ccc;
-        }
-
         .draggable {
             cursor: grab;
         }
@@ -129,7 +113,6 @@
         </form>
 
         <div id="pagePreview" class="mt-4"></div>
-        <div id="image-gallery" class="mt-4"></div>
         <button id="mergeButton" class="btn-submit mt-3" style="display: none;">Mesclar Páginas</button>
     </div>
 
@@ -152,19 +135,16 @@
                     alert(data.error);
                 } else {
                     pages = data.pages;
-                    displayPages(data.images);
+                    displayPages();
                 }
             })
             .catch(error => console.error('Error:', error));
         });
 
-        function displayPages(images) {
+        async function displayPages() {
             let preview = document.getElementById("pagePreview");
-            let imageGallery = document.getElementById("image-gallery");
             preview.innerHTML = "";
-            imageGallery.innerHTML = "";  // Limpar galeria de imagens
 
-            // Exibir páginas PDF
             for (let page of pages) {
                 let div = document.createElement("div");
                 div.classList.add("page-item", "draggable");
@@ -184,17 +164,9 @@
                 div.addEventListener("dragover", dragOver);
                 div.addEventListener("drop", drop);
 
-                // Gerar miniatura para PDF
-                generateThumbnail(page.path, canvas);
+                // Generate thumbnail
+                await generateThumbnail(page.path, canvas);
             }
-
-            // Exibir imagens
-            images.forEach(imagePath => {
-                let imgElement = document.createElement('img');
-                imgElement.src = `/uploads/${imagePath.split('/').pop()}`;
-                imgElement.classList.add('image-item');
-                imageGallery.appendChild(imgElement);
-            });
 
             document.getElementById("mergeButton").style.display = "block";
         }
@@ -241,7 +213,7 @@
             let [removed] = pages.splice(draggedIndex, 1);
             pages.splice(targetIndex, 0, removed);
 
-            displayPages(pages);
+            displayPages();
         }
 
         document.getElementById('mergeButton').addEventListener('click', function() {
