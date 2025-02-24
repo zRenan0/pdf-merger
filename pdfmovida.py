@@ -1,6 +1,6 @@
 from flask import Flask, request, render_template, send_file, jsonify
 import os
-from PyPDF2 import PdfMerger
+from PyPDF2 import PdfReader, PdfWriter
 from PIL import Image
 import io
 import shutil
@@ -23,21 +23,16 @@ def allowed_file(filename):
 def upload_files():
     try:
         if request.method == 'POST':
-            # Verifica se algum arquivo foi enviado
             if 'files' not in request.files:
                 return jsonify({"error": "Nenhum arquivo enviado!"}), 400
             
             files = request.files.getlist('files')
             
-            # Verifica se existem arquivos válidos
             if not files or all(file.filename == '' for file in files):
                 return jsonify({"error": "Nenhum arquivo válido enviado!"}), 400
             
-            ordered_files = request.form['filesOrder'].split(',')
-            
             file_paths = []
             
-            # Salvar os arquivos recebidos
             for file in files:
                 if file and allowed_file(file.filename):
                     filename = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
@@ -46,59 +41,54 @@ def upload_files():
                 else:
                     return jsonify({"error": f"Arquivo inválido: {file.filename}"}), 400
 
-            # Reordenar os arquivos conforme a ordem recebida
-            file_paths_sorted = [file_paths[ordered_files.index(file)] for file in ordered_files]
-
-            # Realiza a mesclagem dos PDFs e imagens
-            try:
-                merged_pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], 'merged_output.pdf')
-                merge_pdfs(file_paths_sorted, merged_pdf_path)
-                return send_file(merged_pdf_path, as_attachment=True)
-            except Exception as e:
-                return jsonify({"error": f"Erro ao mesclar arquivos: {str(e)}"}), 500
-            finally:
-                # Limpeza dos arquivos temporários após o processamento
-                clean_up_files(file_paths)
+            # Desmembrar PDFs e converter imagens
+            pages = split_pdfs_and_convert_images(file_paths)
+            
+            return jsonify({"pages": pages})
 
         return render_template('index.html')
 
     except Exception as e:
         return jsonify({"error": f"Erro interno do servidor: {str(e)}"}), 500
 
-# Função para mesclar arquivos PDF ou converter imagens para PDF e mesclar
-def merge_pdfs(file_paths, output_path):
-    pdf_merger = PdfMerger()
+@app.route('/merge', methods=['POST'])
+def merge_pages():
+    try:
+        page_order = request.json['pageOrder']
+        output_path = os.path.join(app.config['UPLOAD_FOLDER'], 'merged_output.pdf')
+        
+        merge_pdf_pages(page_order, output_path)
+        
+        return send_file(output_path, as_attachment=True)
+    except Exception as e:
+        return jsonify({"error": f"Erro ao mesclar páginas: {str(e)}"}), 500
 
+def split_pdfs_and_convert_images(file_paths):
+    pages = []
     for path in file_paths:
-        try:
-            if path.endswith('.pdf'):
-                pdf_merger.append(path)
-            elif path.lower().endswith(('png', 'jpg', 'jpeg')):
-                img = Image.open(path)
-                img_pdf_path = path.replace(img.format, 'pdf')
-                img.save(img_pdf_path, 'PDF')
-                pdf_merger.append(img_pdf_path)
-        except Exception as e:
-            raise Exception(f"Erro ao processar o arquivo {path}: {str(e)}")
+        if path.endswith('.pdf'):
+            pdf = PdfReader(path)
+            for i, page in enumerate(pdf.pages):
+                output = PdfWriter()
+                output.add_page(page)
+                page_path = f"{path}_page_{i+1}.pdf"
+                with open(page_path, "wb") as output_stream:
+                    output.write(output_stream)
+                pages.append({"path": page_path, "name": f"{os.path.basename(path)} - Página {i+1}"})
+        elif path.lower().endswith(('png', 'jpg', 'jpeg')):
+            img = Image.open(path)
+            pdf_path = f"{path}.pdf"
+            img.save(pdf_path, 'PDF')
+            pages.append({"path": pdf_path, "name": os.path.basename(path)})
+    return pages
 
-    pdf_merger.write(output_path)
-    pdf_merger.close()
-
-# Função para limpar arquivos temporários
-def clean_up_files(file_paths):
-    for file in file_paths:
-        try:
-            os.remove(file)
-        except Exception as e:
-            print(f"Erro ao remover arquivo {file}: {str(e)}")
-    
-    # Também limpa arquivos PDF temporários criados durante a conversão de imagens
-    for file in os.listdir(UPLOAD_FOLDER):
-        if file.endswith('.pdf') and file != 'merged_output.pdf':
-            try:
-                os.remove(os.path.join(UPLOAD_FOLDER, file))
-            except Exception as e:
-                print(f"Erro ao remover arquivo {file}: {str(e)}")
+def merge_pdf_pages(page_order, output_path):
+    merger = PdfWriter()
+    for page in page_order:
+        pdf = PdfReader(page)
+        merger.add_page(pdf.pages[0])
+    with open(output_path, "wb") as output_file:
+        merger.write(output_file)
 
 # Erro 404 personalizado
 @app.errorhandler(404)
