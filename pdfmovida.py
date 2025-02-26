@@ -76,9 +76,5 @@ def split_pdf():
     
     return jsonify({'error': 'Arquivo inválido'}), 400
 
-@app.route('/upload', methods=['POST'])
-def upload_file():
-
-
 if __name__ == '__main__':
     app.run(debug=True)
