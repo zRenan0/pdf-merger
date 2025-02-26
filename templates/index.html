@@ -167,6 +167,11 @@
             pages.splice(index, 1);
             displayPages();
         }
+        fetch('/upload', {
+    method: 'POST',
+    body: formData
+})
+
     </script>
 </body>
 </html>
